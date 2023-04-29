@@ -10,18 +10,20 @@ dataset_fr = load_dataset("amazon_reviews_multi", "fr")
 dataset_es = load_dataset("amazon_reviews_multi", "es")
 dataset_zh = load_dataset("amazon_reviews_multi", "zh")
 
-def cut_columns(dataset):
+def process_columns(dataset):
     wanted_columns = ['review_body', 'stars']
     for column_name in dataset['train'].features.keys():
         if column_name not in wanted_columns:
             dataset = dataset.remove_columns(column_name)
+    dataset = dataset.rename_column("review_body", "text")
+    dataset = dataset.rename_column("stars", "label")
     return dataset
 
-dataset_en = cut_columns(dataset_en)
-dataset_de = cut_columns(dataset_de)
-dataset_fr = cut_columns(dataset_fr)
-dataset_es = cut_columns(dataset_es)
-dataset_zh = cut_columns(dataset_zh)
+dataset_en = process_columns(dataset_en)
+dataset_de = process_columns(dataset_de)
+dataset_fr = process_columns(dataset_fr)
+dataset_es = process_columns(dataset_es)
+dataset_zh = process_columns(dataset_zh)
 
 train_multilingual_dataset = concatenate_datasets([dataset_en['train'], dataset_de['train'], dataset_fr['train'], dataset_es['train'], dataset_zh['train']])
 val_multilingual_dataset = concatenate_datasets([dataset_en['validation'], dataset_de['validation'], dataset_fr['validation'], dataset_es['validation'], dataset_zh['validation']])
@@ -30,11 +32,14 @@ test_multilingual_dataset = concatenate_datasets([dataset_en['test'], dataset_de
 
 tokenizer = AutoTokenizer.from_pretrained("xlm-roberta-base")
 def tokenize_fn(dataset):
-    return tokenizer(dataset['review_body'], padding='max_length', truncation=True)
+    return tokenizer(dataset['text'], padding='max_length', truncation=True)
 
 train_set = train_multilingual_dataset.map(tokenize_fn, batched=True)
+train_set = train_set.map(lambda example: {"label": example["label"] - 1})
 val_set = val_multilingual_dataset.map(tokenize_fn, batched=True)
+val_set = val_set.map(lambda example: {"label": example["label"] - 1})
 test_set = test_multilingual_dataset.map(tokenize_fn, batched=True)
+test_set = test_set.map(lambda example: {"label": example["label"] - 1})
 
 
 model = AutoModelForSequenceClassification.from_pretrained("xlm-roberta-base", num_labels=5)
