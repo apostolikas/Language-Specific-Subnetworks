@@ -28,32 +28,6 @@ def tokenize_dataset(dataset):
     tokenized_datasets = tokenized_datasets.remove_columns(["premise", "hypothesis"])
     return tokenized_datasets
 
-class DummyDataset(data.Dataset):
-
-    def __init__(self, input_ids, attention_mask, labels):
-        """
-        Inputs:
-            size - Number of data points we want to generate
-            std - Standard deviation of the noise (see generate_continuous_xor function)
-        """
-        super().__init__()
-        self.input_ids = input_ids
-        self.attention_mask = attention_mask
-        self.labels = labels
-
-    def __len__(self):
-        # Number of data point we have. Alternatively self.data.shape[0], or self.label.shape[0]
-        return len(self.labels)
-
-    def __getitem__(self, idx):
-        # Return the idx-th data point of the dataset
-        # If we have multiple things to return (data point and label), we can return them as tuple
-        input_ids = self.input_ids[idx]
-        attention_mask = self.attention_mask[idx]
-        label = self.labels[idx]
-        # return input_ids, attention_mask, label
-        return {"input_ids": input_ids, "labels": label,'attention_mask':attention_mask}
-
 def compute_metrics(eval_pred):
     predictions, labels = eval_pred
     predictions = np.argmax(predictions, axis=1)
@@ -74,11 +48,6 @@ tokenized_train_dataset = tokenize_dataset(train_multilingual_dataset)
 tokenized_val_dataset = tokenize_dataset(val_multilingual_dataset)
 tokenized_test_dataset = tokenize_dataset(test_multilingual_dataset)
 batch_size = 104#128 too big
-# input_ids = [[i for i in range(256)] for j in range(batch_size)]
-# attention_mask = [[1 for i in range(256)] for j in range(batch_size)]
-# labels = [1 for j in range(batch_size)]
-# tokenized_train_dataset = DummyDataset(input_ids, attention_mask, labels)
-# tokenized_val_dataset = DummyDataset(input_ids, attention_mask, labels)
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 model = AutoModelForSequenceClassification.from_pretrained("xlm-roberta-base", num_labels = 3)
@@ -102,7 +71,7 @@ args = TrainingArguments(  #Defining Training arguments
     load_best_model_at_end=True, #During evaluation the model with highest accuracy will be loaded.
     metric_for_best_model=metric_name,
     save_total_limit =1,#limit the total amount of checkpoints
-    fp16 = True#True,
+    fp16 = True
 )
 metric = evaluate.load('accuracy')
 
@@ -123,4 +92,4 @@ trainer.evaluate() #Checking to see if model with highest accuracy is returned
 "--- Trainer evaluate on testset ---"
 
 results = trainer.evaluate(tokenized_test_dataset) #evaluating performance on test dataset. 
-# print("Test results : \n" ,results) 
+print("Test results : \n" ,results) 
