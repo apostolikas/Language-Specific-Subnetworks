@@ -5,15 +5,23 @@ from datetime import datetime
 from datasets import load_dataset
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, SequentialSampler, Subset, random_split
+from torch.utils.data import DataLoader, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
 import evaluate
+import random
 
 accuracy_metric = evaluate.load("accuracy")
+logger = logging.getLogger(__name__)
 
+def set_all_seeds(args):
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    torch.backends.cudnn.deterministic = True
 
-# ! add language to args parser
 def fetch_data(args):
     dataset_en = load_dataset("paws-x", args.language)
     train_dataset = dataset_en['train']
@@ -106,13 +114,13 @@ def compute_heads_importance(args, model, eval_dataloader, compute_entropy=True,
         head_importance /= tot_tokens
         # ! By default arg = True
         # Layerwise importance normalization
-        # if not args.dont_normalize_importance_by_layer:
-        #     exponent = 2
-        #     norm_by_layer = torch.pow(torch.pow(head_importance, exponent).sum(-1), 1 / exponent)
-        #     head_importance /= norm_by_layer.unsqueeze(-1) + 1e-20
-        # ! By default arg = True
-        # if not args.dont_normalize_global_importance:
-        #     head_importance = (head_importance - head_importance.min()) / (head_importance.max() - head_importance.min())
+        if not args.dont_normalize_importance_by_layer:
+            exponent = 2
+            norm_by_layer = torch.pow(torch.pow(head_importance, exponent).sum(-1), 1 / exponent)
+            head_importance /= norm_by_layer.unsqueeze(-1) + 1e-20
+        #! By default arg = True
+        if not args.dont_normalize_global_importance:
+            head_importance = (head_importance - head_importance.min()) / (head_importance.max() - head_importance.min())
 
         # Print/save matrices
         np.save(os.path.join(args.output_dir, "head_importance.npy"), head_importance.detach().cpu().numpy())
@@ -243,56 +251,37 @@ def prune_heads(args, model, eval_dataloader, head_mask):
     logger.info("Pruning: score with masking: %f score with pruning: %f", score_masking, score_pruning)
     logger.info("Pruning: speed ratio (new timing / original timing): %f percents", original_time / new_time * 100)
 
-
-
 #! up2here
 
 
 def main():
     parser = argparse.ArgumentParser()
-    # Required parameters
-    parser.add_argument(
-        "--data_dir",
-        default=None,
-        type=str,
-        required=True,
-        help="The input data dir. Should contain the .tsv files (or other data files) for the task.",
-    )
 
     parser.add_argument(
-        "--model_name_or_path",
-        default=None,
+        "--model_path",
+        default='./Finetune_PAWS-X_results/checkpoint-30000',
         type=str,
-        required=True,
-        help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(ALL_MODELS),
+        help="Path to pre-trained model",
     )
-
     parser.add_argument(
         "--output_dir",
-        default=None,
+        default='./Pruning_PAWS-X_results',
         type=str,
-        required=True,
         help="The output directory where the model predictions and checkpoints will be written.",
     )
-
-    # Other parameters
     parser.add_argument(
-        "--config_name",
-        default="",
-        type=str,
-        help="Pretrained config name or path if not the same as model_name_or_path",
+        "--save_mask_all_iterations", action="store_true", help="Saves the masks and importance scores in all iterations"
     )
     parser.add_argument(
-        "--tokenizer_name",
-        default="",
-        type=str,
-        help="Pretrained tokenizer name or path if not the same as model_name_or_path",
+        "--dont_normalize_importance_by_layer", action="store_true", help="Don't normalize importance score by layers"
     )
     parser.add_argument(
-        "--cache_dir",
-        default="",
-        type=str,
-        help="Where do you want to store the pre-trained models downloaded from s3",
+        "--dont_normalize_global_importance",
+        action="store_true",
+        help="Don't normalize all importance scores between 0 and 1",
+    )
+    parser.add_argument(
+        "--try_masking", action="store_true", help="Whether to try to mask head until a threshold of accuracy."
     )
     parser.add_argument(
         "--masking_threshold",
@@ -303,11 +292,14 @@ def main():
     parser.add_argument(
         "--masking_amount", default=0.1, type=float, help="Amount to heads to masking at each masking step."
     )
-    parser.add_argument("--metric_name", default=None, type=str, help="Metric to use for head masking.")
+
     parser.add_argument("--batch_size", default=1, type=int, help="Batch size.")
     parser.add_argument("--seed", type=int, default=42)
-    args = parser.parse_args()
+    parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
+    parser.add_argument("--no_cuda", action="store_true", help="Whether not to use CUDA when available")
+    parser.add_argument("--language", default="en", type=str, help="Language of the dataset")
 
+    args = parser.parse_args()
 
     # Setup devices and distributed training
     if args.local_rank == -1 or args.no_cuda:
@@ -324,24 +316,31 @@ def main():
     logger.info("device: {} n_gpu: {}, distributed: {}".format(args.device, args.n_gpu, bool(args.local_rank != -1)))
 
     # Set seeds
-    set_seed(args)
-
- 
-    processor = processors[args.task_name]()
-    args.output_mode = output_modes[args.task_name]
-    label_list = processor.get_labels()
-    num_labels = len(label_list)
+    set_all_seeds(args)
 
     # Load pretrained model and tokenizer
     if args.local_rank not in [-1, 0]:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
-
+       torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 
     if args.local_rank == 0:
-        torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
+       torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 
     # Distributed and parallel training
+    model = AutoModelForSequenceClassification.from_pretrained(args.model_path)
+    tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)    
     model.to(args.device)
+
+    def preprocess_function(ex_dataset):
+        encodings = tokenizer(ex_dataset['sentence1'], ex_dataset['sentence2'])
+        targets = torch.tensor(ex_dataset['label'],dtype=torch.long)
+        encodings.update({'labels': targets})
+        return encodings
+
+    _,valid_dataset,_ = fetch_data(args)
+    encoded_val_dataset = list(map(preprocess_function,valid_dataset))
+
+    eval_dataloader = torch.utils.data.DataLoader(encoded_val_dataset, batch_size=args.batch_size, num_workers = 2)
+
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True
@@ -349,21 +348,12 @@ def main():
     elif args.n_gpu > 1:
         model = torch.nn.DataParallel(model)
 
+    if not os.path.exists(args.output_dir):
+        os.mkdir(os.path.join(args.output_dir, "run_args.bin"))
+
     # Print/save training arguments
     torch.save(args, os.path.join(args.output_dir, "run_args.bin"))
     logger.info("Training/evaluation parameters %s", args)
-
-    # Prepare dataset for the GLUE task
-    eval_data = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=True)
-    if args.use_train_data:
-        train_data = load_and_cache_examples(args, args.task_name, tokenizer, evaluate=False)
-        eval_data = random_split(train_data, [true_eval_len, len(train_data) - true_eval_len])[0]
-    if args.data_subset > 0:
-        eval_data = Subset(eval_data, list(range(min(args.data_subset, len(eval_data)))))
-    eval_sampler = SequentialSampler(eval_data) if args.local_rank == -1 else DistributedSampler(eval_data)
-    eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.batch_size)
-
-    
 
     # Try head masking (set heads to zero until the score goes under a threshole)
     # and head pruning (remove masked heads and see the effect on the network)
@@ -373,6 +363,7 @@ def main():
     else:
         #Compute head entropy and importance score
         compute_heads_importance(args, model, eval_dataloader)
+
 
 if __name__ == "__main__":
     main()
