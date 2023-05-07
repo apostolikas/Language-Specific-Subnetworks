@@ -66,16 +66,25 @@ if __name__ == "__main__":
         encodings.update({'labels': targets})
         return encodings
 
+    def preprocess_function(ex_dataset):
+        encodings = tokenizer(ex_dataset['sentence1'], ex_dataset['sentence2'])
+        targets = torch.tensor(ex_dataset['label'],dtype=torch.long)
+        encodings.update({'labels': targets})
+        return encodings
+
 
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
         return metric.compute(predictions=predictions, references=labels)
 
+    encoded_train_dataset = list(map(preprocess_function,train_dataset)) #encoding the dataset by mapping the tokenize function to each sample in the dataset
+    encoded_val_dataset = list(map(preprocess_function,val_dataset))
+    encoded_test_dataset = list(map(preprocess_function,test_dataset))
 
-    encoded_train_dataset = list(map(tokenize_data,train_dataset)) #encoding the dataset by mapping the tokenize function to each sample in the dataset
-    encoded_val_dataset = list(map(tokenize_data,val_dataset))
-    encoded_test_dataset = list(map(tokenize_data,test_dataset))
+    # encoded_train_dataset = list(map(tokenize_data,train_dataset)) #encoding the dataset by mapping the tokenize function to each sample in the dataset
+    # encoded_val_dataset = list(map(tokenize_data,val_dataset))
+    # encoded_test_dataset = list(map(tokenize_data,test_dataset))
     print("--- Data processed successfully ---")
 
     batch_size = 32
@@ -84,12 +93,14 @@ if __name__ == "__main__":
     args = TrainingArguments(  #Defining Training arguments
         output_dir = "Finetune_PAWS-X_results", #Storing model checkpoints 
         seed = 42, 
-        evaluation_strategy = "epoch",
-        save_strategy = "epoch",
+        evaluation_strategy = "steps",
+        save_strategy = "steps",
+        eval_steps=2000,
+        save_steps=10000,
         learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=10,
+        num_train_epochs=1,
         weight_decay=0.01,
         load_best_model_at_end=True, #During evaluation the model with highest accuracy will be loaded.
         metric_for_best_model=metric_name,
