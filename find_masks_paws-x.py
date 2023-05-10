@@ -70,9 +70,22 @@ def compute_heads_importance(args, model, eval_dataloader, compute_entropy=True,
     tot_tokens = 0.0
 
     for step, batch in enumerate(tqdm(eval_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])):
+        # ! str -> to(device) ?
+ 
+        inp_ids = batch['input_ids'] # list of tensors
+        att_mask = batch['attention_mask'] # list of tensors
+        label = batch['labels'] # list of tensors
+        
+        inp_ids = [i_id.to(args.device) for i_id in inp_ids] # list comprehension for faster computation -> to device
+        att_mask = [a_mask.to(args.device) for a_mask in att_mask]
+        label = [lbl.to(args.device) for lbl in label]
 
-        batch = tuple(t.to(args.device) for t in batch)
-        inp_ids, att_mask, label = batch
+        inp_ids = torch.LongTensor(inp_ids) #! batch_size, seq_length = input_shape -> wrong shape 
+        att_mask = torch.FloatTensor(att_mask) 
+        label = torch.ShortTensor(label) 
+
+        #batch = tuple(batch.to(args.device) for t in batch)
+        #inp_ids, att_mask, label = batch
 
         #! tokenizer gives input_ids and attention mask and label, token type ids = ? 
         # Do a forward pass (not with torch.no_grad() since we need gradients for importance score - see below)
@@ -336,10 +349,16 @@ def main():
         encodings.update({'labels': targets})
         return encodings
 
-    _,valid_dataset,_ = fetch_data(args)
+
+
+    _,valid_dataset,_ = fetch_data(args) #! 10% of original size
     encoded_val_dataset = list(map(preprocess_function,valid_dataset))
 
     eval_dataloader = torch.utils.data.DataLoader(encoded_val_dataset, batch_size=args.batch_size, num_workers = 2)
+
+
+
+
 
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(
