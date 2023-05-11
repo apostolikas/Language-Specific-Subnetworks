@@ -43,7 +43,7 @@ def compute_importance(model,
     """
 
     # Prepare our tensors
-    n_layers, n_heads = model.bert.config.num_hidden_layers, model.bert.config.num_attention_heads
+    n_layers, n_heads = model.config.num_hidden_layers, model.config.num_attention_heads
     mlp_importance = torch.zeros(n_layers).to(device)
     head_importance = torch.zeros(n_layers, n_heads).to(device)
 
@@ -74,10 +74,10 @@ def compute_importance(model,
                         head_mask=head_mask,
                         mlp_mask=mlp_mask)
         loss, logits, _ = outputs
-        loss.backward(
-        )  # Backpropagate to populate the gradients in the head mask
+        loss.backward()  # Backpropagate to populate the gradients in the head mask
 
         if compute_importance:
+
             mlp_importance += mlp_mask.grad.abs().detach()
             head_importance += head_mask.grad.abs().detach()
             mlp_mask.grad *= 0
@@ -89,9 +89,7 @@ def compute_importance(model,
             labels = label_ids.detach().cpu().numpy()
         else:
             preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-            labels = np.append(labels,
-                               label_ids.detach().cpu().numpy(),
-                               axis=0)
+            labels = np.append(labels, label_ids.detach().cpu().numpy(), axis=0)
 
         tot_tokens += input_mask.float().detach().sum().data
 
@@ -100,14 +98,13 @@ def compute_importance(model,
         mlp_importance /= tot_tokens
 
         exponent = 2
-        norm_by_layer = torch.pow(
-            torch.pow(head_importance, exponent).sum(-1), 1 / exponent)
+        norm_by_layer = torch.pow(torch.pow(head_importance, exponent).sum(-1), 1 / exponent)
         head_importance /= norm_by_layer.unsqueeze(-1) + 1e-20
 
-        mlp_importance = (mlp_importance - mlp_importance.min()) / (
-            mlp_importance.max() - mlp_importance.min())
-        head_importance = (head_importance - head_importance.min()) / (
-            head_importance.max() - head_importance.min())
+        mlp_importance = (mlp_importance - mlp_importance.min()) / (mlp_importance.max() -
+                                                                    mlp_importance.min())
+        head_importance = (head_importance - head_importance.min()) / (head_importance.max() -
+                                                                       head_importance.min())
 
         # Print/save matrices
         # np.save(os.path.join(args.output_dir, "head_importance.npy"), head_importance.detach().cpu().numpy())
@@ -122,15 +119,11 @@ def mask_model(args, model, eval_dataloader, device):
     """
     head_importance, mlp_importance, preds, labels = compute_importance(
         model, eval_dataloader, device=device)
-    preds = np.argmax(
-        preds,
-        axis=1) if args.output_mode == "classification" else np.squeeze(preds)
+    preds = np.argmax(preds, axis=1)
     original_score = (preds == labels).mean()
 
     abs_threshold = args.masking_threshold * original_score
-    print(
-        f"Pruning: original score: {original_score}, threshold: {abs_threshold:.3f}",
-    )
+    print(f"Pruning: original score: {original_score}, threshold: {abs_threshold:.3f}",)
 
     new_mlp_mask = torch.ones_like(mlp_importance)
     new_head_mask = torch.ones_like(head_importance)
@@ -152,12 +145,11 @@ def mask_model(args, model, eval_dataloader, device):
         # mask heads
         selected_heads_to_mask = []
         for head in current_heads_to_mask:
-            if len(selected_heads_to_mask
-                   ) == num_to_mask or head_importance.view(-1)[
-                       head.item()] == float("Inf"):
+            if len(selected_heads_to_mask) == num_to_mask or head_importance.view(-1)[
+                    head.item()] == float("Inf"):
                 break
-            layer_idx = head.item() // model.bert.config.num_attention_heads
-            head_idx = head.item() % model.bert.config.num_attention_heads
+            layer_idx = head.item() // model.config.num_attention_heads
+            head_idx = head.item() % model.config.num_attention_heads
             new_head_mask[layer_idx][head_idx] = 0.0
             selected_heads_to_mask.append(head.item())
 
@@ -192,16 +184,12 @@ def mask_model(args, model, eval_dataloader, device):
         # MLP score
         print(f"MLP Masking: current score: {current_score:.3f}", end=" ")
         print(f"remaining mlps {new_mlp_mask.sum()}", end=" ")
-        print(
-            f"({new_mlp_mask.sum() / new_mlp_mask.numel() * 100:.1f} percents)"
-        )
+        print(f"({new_mlp_mask.sum() / new_mlp_mask.numel() * 100:.1f} percents)")
 
         # Head score
         print(f"Head Masking: current score: {current_score}", end=" ")
         print(f"remaining heads {new_head_mask.sum()}", end=" ")
-        print(
-            f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)"
-        )
+        print(f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)")
 
     print("Finding additional head masks")
     current_score = best_score
@@ -219,12 +207,11 @@ def mask_model(args, model, eval_dataloader, device):
         # mask heads
         selected_heads_to_mask = []
         for head in current_heads_to_mask:
-            if len(selected_heads_to_mask
-                   ) == num_to_mask // 2 or head_importance.view(-1)[
-                       head.item()] == float("Inf"):
+            if len(selected_heads_to_mask) == num_to_mask // 2 or head_importance.view(-1)[
+                    head.item()] == float("Inf"):
                 break
-            layer_idx = head.item() // model.bert.config.num_attention_heads
-            head_idx = head.item() % model.bert.config.num_attention_heads
+            layer_idx = head.item() // model.config.num_attention_heads
+            head_idx = head.item() % model.config.num_attention_heads
             new_head_mask[layer_idx][head_idx] = 0.0
             selected_heads_to_mask.append(head.item())
 
@@ -244,9 +231,7 @@ def mask_model(args, model, eval_dataloader, device):
         # Head score
         print(f"Head Masking: current score: {current_score}", end=" ")
         print(f"remaining heads {new_head_mask.sum()}", end=" ")
-        print(
-            f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)"
-        )
+        print(f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)")
 
     print("Finding additional MLP masks")
     current_score = best_score
@@ -281,9 +266,7 @@ def mask_model(args, model, eval_dataloader, device):
         # MLP score
         print(f"MLP Masking: current score: {current_score:.3f}", end=" ")
         print(f"remaining mlps {new_mlp_mask.sum()}", end=" ")
-        print(
-            f"({new_mlp_mask.sum() / new_mlp_mask.numel() * 100:.1f} percents)"
-        )
+        print(f"({new_mlp_mask.sum() / new_mlp_mask.numel() * 100:.1f} percents)")
 
     # np.save(os.path.join(args.output_dir, "head_mask.npy"), head_mask.detach().cpu().numpy())
     # np.save(os.path.join(args.output_dir, "mlp_mask.npy"), mlp_mask.detach().cpu().numpy())
@@ -291,7 +274,7 @@ def mask_model(args, model, eval_dataloader, device):
     return head_mask, mlp_mask
 
 
-def prune_model(args, model, eval_dataloader, device, head_mask, mlp_mask):
+def prune_model(model, eval_dataloader, device, head_mask, mlp_mask):
     """ This method shows how to prune head (remove heads weights) based on
         the head importance scores as described in Michel et al. (http://arxiv.org/abs/1905.10650)
     """
@@ -312,14 +295,9 @@ def prune_model(args, model, eval_dataloader, device, head_mask, mlp_mask):
 
     heads_to_prune = {}
     for layer in range(len(head_mask)):
-        heads_to_mask = [
-            h[0] for h in (1 - head_mask[layer].long()).nonzero().tolist()
-        ]
+        heads_to_mask = [h[0] for h in (1 - head_mask[layer].long()).nonzero().tolist()]
         heads_to_prune[layer] = heads_to_mask
-    assert sum(
-        len(h)
-        for h in heads_to_prune.values()) == (1 -
-                                              head_mask.long()).sum().item()
+    assert sum(len(h) for h in heads_to_prune.values()) == (1 - head_mask.long()).sum().item()
 
     # TODO
     print(f"Pruning heads..")
@@ -349,8 +327,7 @@ def prune_model(args, model, eval_dataloader, device, head_mask, mlp_mask):
     print(f"{pruned_num_params / original_num_params * 100:.2f} percents)")
 
     print(
-        f"Pruning: score with masking: {score_masking:2f} score with pruning: {score_pruning:.2f}"
-    )
+        f"Pruning: score with masking: {score_masking:2f} score with pruning: {score_pruning:.2f}")
     print(
         f"Pruning: speed ratio (original timing / new timing): {original_time / new_time * 100:.2} percents"
     )

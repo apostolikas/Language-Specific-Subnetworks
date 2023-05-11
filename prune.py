@@ -24,6 +24,7 @@ def set_seed(args):
 
 
 def tokenize_data(dataset: Dataset) -> BatchEncoding:
+    tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
     encodings = ...
     return encodings
 
@@ -52,14 +53,14 @@ def main(args):
     dataloader = get_dataloader(dataset_name, args.lang)
 
     # Model
-    tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
+
     model = AutoModelForSequenceClassification.from_pretrained(args.checkpoint).to(device)
 
     # Pruning
     set_seed(args.seed)
     os.makedirs(args.output_dir, exist_ok=True)
-    head_mask, mlp_mask = mask_model(model, dataloader, device)
-    model = prune_model(args, model, dataloader, device, head_mask, mlp_mask)
+    head_mask, mlp_mask = mask_model(args, model, dataloader, device)
+    model = prune_model(model, dataloader, device, head_mask, mlp_mask)
 
     # Save
     pass
