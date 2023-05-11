@@ -1,10 +1,12 @@
 from transformers import AutoTokenizer
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset, concatenate_datasets, Dataset
 import torch
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer, DataCollator
 import evaluate
 import numpy as np
+
+
 
 @dataclass
 class SmartCollator():
@@ -24,10 +26,8 @@ class SmartCollator():
             "labels": torch.tensor(labels, dtype=torch.long)
             } 
 
-
 def pad_seq(seq,max_batch_len, pad_value):
   return seq + (max_batch_len - len(seq))*[pad_value]  
-
 
 
 def fetch_datasets():
@@ -36,23 +36,53 @@ def fetch_datasets():
     dataset_fr = load_dataset("amazon_reviews_multi", "fr")
     dataset_es = load_dataset("amazon_reviews_multi", "es")
     dataset_zh = load_dataset("amazon_reviews_multi", "zh")
+
+    testset_en = dataset_en['test']
+    testset_de = dataset_de['test']
+    testset_fr = dataset_fr['test']
+    testset_es = dataset_es['test']
+    testset_zh = dataset_zh['test']
+
+    validset_en = dataset_en['validation']
+    validset_de = dataset_de['validation']
+    validset_fr = dataset_fr['validation']
+    validset_es = dataset_es['validation']
+    validset_zh = dataset_zh['validation']
+
+
+    # train_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['train'][:50_000]), 
+    #                                     Dataset.from_dict(dataset_de['train'][:50_000]), 
+    #                                     Dataset.from_dict(dataset_fr['train'][:50_000]), 
+    #                                     Dataset.from_dict(dataset_es['train'][:50_000]), 
+    #                                     Dataset.from_dict(dataset_zh['train'][:50_000])])
+    # val_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['validation'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_de['validation'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_fr['validation'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_es['validation'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_zh['validation'][:5_000])])
+    # test_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['test'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_de['test'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_fr['test'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_es['test'][:5_000]), 
+    #                                     Dataset.from_dict(dataset_zh['test'][:5_000])])
+
     train_dataset = concatenate_datasets([dataset_en['train'], dataset_de['train'], dataset_fr['train'], dataset_es['train'], dataset_zh['train']])
     val_dataset = concatenate_datasets([dataset_en['validation'], dataset_de['validation'], dataset_fr['validation'], dataset_es['validation'], dataset_zh['validation']])
     test_dataset = concatenate_datasets([dataset_en['test'], dataset_de['test'], dataset_fr['test'], dataset_es['test'], dataset_zh['test']])
-    return train_dataset, val_dataset, test_dataset
 
+    return train_dataset, val_dataset, test_dataset , validset_en, validset_de,validset_fr, validset_es,validset_zh ,testset_en, testset_de, testset_fr, testset_es, testset_zh
 
 
 tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
 model = AutoModelForSequenceClassification.from_pretrained('xlm-roberta-base', num_labels=5)
 
-
 if __name__ == "__main__":    
     
-    train_dataset, val_dataset, test_dataset = fetch_datasets()
+    train_dataset, val_dataset, test_dataset, validset_en, validset_de,validset_fr, validset_es,validset_zh ,testset_en, testset_de, testset_fr, testset_es, testset_zh = fetch_datasets()
     print("--- Data loaded successfully ---")
 
     def tokenize_data(ex_dataset):
+
         # Concatenate review body with review_title and product_category for performance boost 
         text = ex_dataset['review_body'] + " " + ex_dataset['review_title'] + " " + ex_dataset['product_category']
         # Tokenize & Encode
@@ -65,6 +95,7 @@ if __name__ == "__main__":
                                         return_overflowing_tokens=False,
                                         return_special_tokens_mask=False,
                                         )
+        
         # Labels in range 0-4
         targets = torch.tensor(ex_dataset['stars']-1,dtype=torch.long)
         encodings.update({'labels': targets})
@@ -74,12 +105,26 @@ if __name__ == "__main__":
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=1)
+
         return metric.compute(predictions=predictions, references=labels)
 
-
+    
     encoded_train_dataset = list(map(tokenize_data,train_dataset)) #encoding the dataset by mapping the tokenize function to each sample in the dataset
     encoded_val_dataset = list(map(tokenize_data,val_dataset))
     encoded_test_dataset = list(map(tokenize_data,test_dataset))
+
+    testset_en = list(map(tokenize_data,testset_en))
+    testset_de = list(map(tokenize_data,testset_de))
+    testset_fr = list(map(tokenize_data,testset_fr))
+    testset_es = list(map(tokenize_data,testset_es))
+    testset_zh = list(map(tokenize_data,testset_zh))
+
+    validset_en = list(map(tokenize_data,validset_en))
+    validset_de = list(map(tokenize_data,validset_de))
+    validset_fr = list(map(tokenize_data,validset_fr))
+    validset_es = list(map(tokenize_data,validset_es))
+    validset_zh = list(map(tokenize_data,validset_zh))
+
     print("--- Data processed successfully ---")
 
     batch_size = 32
@@ -88,16 +133,17 @@ if __name__ == "__main__":
     args = TrainingArguments(  #Defining Training arguments
         output_dir = "Finetune_MARC_results", #Storing model checkpoints 
         seed = 42, 
-        evaluation_strategy = "steps",
-        learning_rate=5e-5,
+        evaluation_strategy = "epoch",
+        save_strategy = 'epoch',
+        learning_rate=2e-5, #2e-5
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
-        num_train_epochs=1,
+        num_train_epochs=5, #5
         weight_decay=0.01,
         load_best_model_at_end=True, #During evaluation the model with highest accuracy will be loaded.
         metric_for_best_model=metric_name,
-        eval_steps = 5000,
-        save_steps = 5000,
+        #eval_steps = 2000,
+        #save_steps = 12000,
         fp16 = True
     )
     metric = evaluate.load('accuracy')
@@ -116,6 +162,42 @@ if __name__ == "__main__":
     trainer.train() #training
     "--- Trainer check model ---"
     trainer.evaluate() #Checking to see if model with highest accuracy is returned
+    print(trainer.state.best_model_checkpoint)
     "--- Trainer evaluate on testset ---"
-    trainer.evaluate(encoded_test_dataset) #evaluating performance on test dataset. 
+    results = trainer.evaluate(encoded_test_dataset) #evaluating performance on test dataset. 
+    print("Acc on concatenated test dataset : ",results)
+
+    "--- Separate valid accs ---"
+    results_val_en = trainer.evaluate(validset_en) 
+    print("Valid Acc - English : ",results_val_en)
+
+    results_val_de = trainer.evaluate(validset_de) 
+    print("Valid Acc - German : ",results_val_de)
+
+    results_val_fr = trainer.evaluate(validset_fr) 
+    print("Valid Acc - French : ",results_val_fr)
+
+    results_val_es = trainer.evaluate(validset_es) 
+    print("Valid Acc - Spanish : ",results_val_es)
+
+    results_val_zh = trainer.evaluate(validset_zh) 
+    print("Valid Acc - Chinese : ",results_val_zh)
+
+    "--- Separate test accs ---"
+    results_test_en = trainer.evaluate(testset_en) 
+    print("Test Acc - English : ",results_test_en)
+
+    results_test_de = trainer.evaluate(testset_de) 
+    print("Test Acc - German : ",results_test_de)
+
+    results_test_fr = trainer.evaluate(testset_fr) 
+    print("Test Acc - French : ",results_test_fr)
+
+    results_test_es = trainer.evaluate(testset_es) 
+    print("Test Acc - Spanish : ",results_test_es)
+
+    results_test_zh = trainer.evaluate(testset_zh) 
+    print("Test Acc - Chinese : ",results_test_zh)
+
+
 
