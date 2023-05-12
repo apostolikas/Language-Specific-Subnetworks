@@ -37,38 +37,55 @@ def fetch_datasets():
     dataset_es = load_dataset("amazon_reviews_multi", "es")
     dataset_zh = load_dataset("amazon_reviews_multi", "zh")
 
-    testset_en = dataset_en['test']
-    testset_de = dataset_de['test']
-    testset_fr = dataset_fr['test']
-    testset_es = dataset_es['test']
-    testset_zh = dataset_zh['test']
+    # testset_en = dataset_en['test']
+    # testset_de = dataset_de['test']
+    # testset_fr = dataset_fr['test']
+    # testset_es = dataset_es['test']
+    # testset_zh = dataset_zh['test']
 
-    validset_en = dataset_en['validation']
-    validset_de = dataset_de['validation']
-    validset_fr = dataset_fr['validation']
-    validset_es = dataset_es['validation']
-    validset_zh = dataset_zh['validation']
+    # validset_en = dataset_en['validation']
+    # validset_de = dataset_de['validation']
+    # validset_fr = dataset_fr['validation']
+    # validset_es = dataset_es['validation']
+    # validset_zh = dataset_zh['validation']
+
+    testset_en = Dataset.from_dict(dataset_en['test'][:5_000])
+    testset_de = Dataset.from_dict(dataset_de['test'][:5_000])
+    testset_fr = Dataset.from_dict(dataset_fr['test'][:5_000])
+    testset_es = Dataset.from_dict(dataset_es['test'][:5_000])
+    testset_zh = Dataset.from_dict(dataset_zh['test'][:5_000])
 
 
-    # train_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['train'][:50_000]), 
-    #                                     Dataset.from_dict(dataset_de['train'][:50_000]), 
-    #                                     Dataset.from_dict(dataset_fr['train'][:50_000]), 
-    #                                     Dataset.from_dict(dataset_es['train'][:50_000]), 
-    #                                     Dataset.from_dict(dataset_zh['train'][:50_000])])
-    # val_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['validation'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_de['validation'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_fr['validation'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_es['validation'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_zh['validation'][:5_000])])
-    # test_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['test'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_de['test'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_fr['test'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_es['test'][:5_000]), 
-    #                                     Dataset.from_dict(dataset_zh['test'][:5_000])])
+    validset_en = Dataset.from_dict(dataset_en['validation'][:5_000])
+    validset_de = Dataset.from_dict(dataset_de['validation'][:5_000])
+    validset_fr = Dataset.from_dict(dataset_fr['validation'][:5_000])
+    validset_es = Dataset.from_dict(dataset_es['validation'][:5_000])
+    validset_zh = Dataset.from_dict(dataset_zh['validation'][:5_000])                  
+                     
 
-    train_dataset = concatenate_datasets([dataset_en['train'], dataset_de['train'], dataset_fr['train'], dataset_es['train'], dataset_zh['train']])
-    val_dataset = concatenate_datasets([dataset_en['validation'], dataset_de['validation'], dataset_fr['validation'], dataset_es['validation'], dataset_zh['validation']])
-    test_dataset = concatenate_datasets([dataset_en['test'], dataset_de['test'], dataset_fr['test'], dataset_es['test'], dataset_zh['test']])
+    train_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['train'][:50_000]), 
+                                        Dataset.from_dict(dataset_de['train'][:50_000]), 
+                                        Dataset.from_dict(dataset_fr['train'][:50_000]), 
+                                        Dataset.from_dict(dataset_es['train'][:50_000]), 
+                                        Dataset.from_dict(dataset_zh['train'][:50_000])])
+
+    train_dataset = train_dataset.shuffle(seed=42)
+
+    val_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['validation'][:5_000]), 
+                                        Dataset.from_dict(dataset_de['validation'][:5_000]), 
+                                        Dataset.from_dict(dataset_fr['validation'][:5_000]), 
+                                        Dataset.from_dict(dataset_es['validation'][:5_000]), 
+                                        Dataset.from_dict(dataset_zh['validation'][:5_000])])
+
+    test_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['test'][:5_000]), 
+                                        Dataset.from_dict(dataset_de['test'][:5_000]), 
+                                        Dataset.from_dict(dataset_fr['test'][:5_000]), 
+                                        Dataset.from_dict(dataset_es['test'][:5_000]), 
+                                        Dataset.from_dict(dataset_zh['test'][:5_000])])
+
+    #train_dataset = concatenate_datasets([dataset_en['train'], dataset_de['train'], dataset_fr['train'], dataset_es['train'], dataset_zh['train']])
+    #val_dataset = concatenate_datasets([dataset_en['validation'], dataset_de['validation'], dataset_fr['validation'], dataset_es['validation'], dataset_zh['validation']])
+    #test_dataset = concatenate_datasets([dataset_en['test'], dataset_de['test'], dataset_fr['test'], dataset_es['test'], dataset_zh['test']])
 
     return train_dataset, val_dataset, test_dataset , validset_en, validset_de,validset_fr, validset_es,validset_zh ,testset_en, testset_de, testset_fr, testset_es, testset_zh
 
@@ -135,7 +152,7 @@ if __name__ == "__main__":
         seed = 42, 
         evaluation_strategy = "epoch",
         save_strategy = 'epoch',
-        learning_rate=2e-5, #2e-5
+        learning_rate=5e-5, #2e-5
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         num_train_epochs=5, #5
