@@ -6,7 +6,9 @@ from transformers import AutoModelForSequenceClassification, TrainingArguments, 
 import evaluate
 import numpy as np
 
-
+def concatenate_dictionaries(dict1, dict2, dict3, dict4, dict5):
+    concatenated_dict = {key: dict1[key] + dict2[key] + dict3[key] + dict4[key] + dict5[key] for key in dict1}
+    return concatenated_dict
 
 @dataclass
 class SmartCollator():
@@ -49,39 +51,31 @@ def fetch_datasets():
     # validset_es = dataset_es['validation']
     # validset_zh = dataset_zh['validation']
 
-    testset_en = Dataset.from_dict(dataset_en['test'][:5_000])
-    testset_de = Dataset.from_dict(dataset_de['test'][:5_000])
-    testset_fr = Dataset.from_dict(dataset_fr['test'][:5_000])
-    testset_es = Dataset.from_dict(dataset_es['test'][:5_000])
-    testset_zh = Dataset.from_dict(dataset_zh['test'][:5_000])
+    testset_en = Dataset.from_dict(concatenate_dictionaries(dataset_en['test'][:300],dataset_en['test'][1000:1300],dataset_en['test'][2000:2300],dataset_en['test'][3000:3300],dataset_en['test'][4000:4300])).shuffle(seed=42)
+    testset_de = Dataset.from_dict(concatenate_dictionaries(dataset_de['test'][:300],dataset_de['test'][1000:1300],dataset_de['test'][2000:2300],dataset_de['test'][3000:3300],dataset_de['test'][4000:4300])).shuffle(seed=42)
+    testset_fr = Dataset.from_dict(concatenate_dictionaries(dataset_fr['test'][:300],dataset_fr['test'][1000:1300],dataset_fr['test'][2000:2300],dataset_fr['test'][3000:3300],dataset_fr['test'][4000:4300])).shuffle(seed=42)
+    testset_es = Dataset.from_dict(concatenate_dictionaries(dataset_es['test'][:300],dataset_es['test'][1000:1300],dataset_es['test'][2000:2300],dataset_es['test'][3000:3300],dataset_es['test'][4000:4300])).shuffle(seed=42)
+    testset_zh = Dataset.from_dict(concatenate_dictionaries(dataset_zh['test'][:300],dataset_zh['test'][1000:1300],dataset_zh['test'][2000:2300],dataset_zh['test'][3000:3300],dataset_zh['test'][4000:4300])).shuffle(seed=42)
 
-
-    validset_en = Dataset.from_dict(dataset_en['validation'][:5_000])
-    validset_de = Dataset.from_dict(dataset_de['validation'][:5_000])
-    validset_fr = Dataset.from_dict(dataset_fr['validation'][:5_000])
-    validset_es = Dataset.from_dict(dataset_es['validation'][:5_000])
-    validset_zh = Dataset.from_dict(dataset_zh['validation'][:5_000])                  
+    validset_en = Dataset.from_dict(concatenate_dictionaries(dataset_en['validation'][:300],dataset_en['validation'][1000:1300],dataset_en['validation'][2000:2300],dataset_en['validation'][3000:3300],dataset_en['validation'][4000:4300])).shuffle(seed=42)
+    validset_de = Dataset.from_dict(concatenate_dictionaries(dataset_de['validation'][:300],dataset_de['validation'][1000:1300],dataset_de['validation'][2000:2300],dataset_de['validation'][3000:3300],dataset_de['validation'][4000:4300])).shuffle(seed=42)
+    validset_fr = Dataset.from_dict(concatenate_dictionaries(dataset_fr['validation'][:300],dataset_fr['validation'][1000:1300],dataset_fr['validation'][2000:2300],dataset_fr['validation'][3000:3300],dataset_fr['validation'][4000:4300])).shuffle(seed=42)
+    validset_es = Dataset.from_dict(concatenate_dictionaries(dataset_es['validation'][:300],dataset_es['validation'][1000:1300],dataset_es['validation'][2000:2300],dataset_es['validation'][3000:3300],dataset_es['validation'][4000:4300])).shuffle(seed=42)
+    validset_zh = Dataset.from_dict(concatenate_dictionaries(dataset_zh['validation'][:300],dataset_zh['validation'][1000:1300],dataset_zh['validation'][2000:2300],dataset_zh['validation'][3000:3300],dataset_zh['validation'][4000:4300])).shuffle(seed=42)
+             
                      
+    train_dataset = concatenate_datasets([Dataset.from_dict(concatenate_dictionaries(dataset_en['train'][:8_000],dataset_en['train'][40_000:48_000],dataset_en['train'][80_000:88_000],dataset_en['train'][120_000:128_000],dataset_en['train'][160_000:168_000])), 
+                                        Dataset.from_dict(concatenate_dictionaries(dataset_de['train'][:8_000],dataset_de['train'][40_000:48_000],dataset_de['train'][80_000:88_000],dataset_de['train'][120_000:128_000],dataset_de['train'][160_000:168_000])), 
+                                        Dataset.from_dict(concatenate_dictionaries(dataset_fr['train'][:8_000],dataset_fr['train'][40_000:48_000],dataset_fr['train'][80_000:88_000],dataset_fr['train'][120_000:128_000],dataset_fr['train'][160_000:168_000])), 
+                                        Dataset.from_dict(concatenate_dictionaries(dataset_es['train'][:8_000],dataset_es['train'][40_000:48_000],dataset_es['train'][80_000:88_000],dataset_es['train'][120_000:128_000],dataset_es['train'][160_000:168_000])), 
+                                        Dataset.from_dict(concatenate_dictionaries(dataset_zh['train'][:8_000],dataset_zh['train'][40_000:48_000],dataset_zh['train'][80_000:88_000],dataset_zh['train'][120_000:128_000],dataset_zh['train'][160_000:168_000]))])
 
-    train_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['train'][:50_000]), 
-                                        Dataset.from_dict(dataset_de['train'][:50_000]), 
-                                        Dataset.from_dict(dataset_fr['train'][:50_000]), 
-                                        Dataset.from_dict(dataset_es['train'][:50_000]), 
-                                        Dataset.from_dict(dataset_zh['train'][:50_000])])
+    val_dataset = concatenate_datasets([validset_en,validset_de,validset_fr,validset_es,validset_zh])
+    test_dataset = concatenate_datasets([testset_en,testset_de,testset_fr,testset_es,testset_zh])
 
     train_dataset = train_dataset.shuffle(seed=42)
-
-    val_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['validation'][:5_000]), 
-                                        Dataset.from_dict(dataset_de['validation'][:5_000]), 
-                                        Dataset.from_dict(dataset_fr['validation'][:5_000]), 
-                                        Dataset.from_dict(dataset_es['validation'][:5_000]), 
-                                        Dataset.from_dict(dataset_zh['validation'][:5_000])])
-
-    test_dataset = concatenate_datasets([Dataset.from_dict(dataset_en['test'][:5_000]), 
-                                        Dataset.from_dict(dataset_de['test'][:5_000]), 
-                                        Dataset.from_dict(dataset_fr['test'][:5_000]), 
-                                        Dataset.from_dict(dataset_es['test'][:5_000]), 
-                                        Dataset.from_dict(dataset_zh['test'][:5_000])])
+    val_dataset = val_dataset
+    test_dataset = test_dataset
 
     #train_dataset = concatenate_datasets([dataset_en['train'], dataset_de['train'], dataset_fr['train'], dataset_es['train'], dataset_zh['train']])
     #val_dataset = concatenate_datasets([dataset_en['validation'], dataset_de['validation'], dataset_fr['validation'], dataset_es['validation'], dataset_zh['validation']])
