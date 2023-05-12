@@ -11,6 +11,33 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from tqdm import tqdm
 import evaluate
 import random
+from dataclasses import dataclass
+
+# @dataclass
+# class SmartCollator():
+#   pad_token_id: int
+
+#   def __call__(self, batch):
+tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)    
+
+def collate_function(batch):
+    pad_token_id = tokenizer.pad_token_id
+    batch_inputs = list()
+    batch_attention_masks = list()
+    labels = list()
+    max_size = max([len(ex['input_ids']) for ex in batch])
+    for item in batch:
+        #batch_inputs += [pad_seq(item['input_ids'], max_size, self.pad_token_id)]
+        batch_inputs += [pad_seq(item['input_ids'], max_size, pad_token_id)]
+        batch_attention_masks += [pad_seq(item['attention_mask'], max_size, 0)]
+        labels.append(item['labels'])
+    return {"input_ids": torch.tensor(batch_inputs, dtype=torch.long),
+            "attention_mask": torch.tensor(batch_attention_masks, dtype=torch.long),
+            "labels": torch.tensor(labels, dtype=torch.long)
+            } 
+
+def pad_seq(seq,max_batch_len, pad_value):
+  return seq + (max_batch_len - len(seq))*[pad_value]  
 
 accuracy_metric = evaluate.load("accuracy")
 logger = logging.getLogger(__name__)
@@ -339,9 +366,9 @@ def main():
        torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 
     # Distributed and parallel training
-    model = AutoModelForSequenceClassification.from_pretrained(args.model_path)
+    #model = AutoModelForSequenceClassification.from_pretrained(args.model_path)
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)    
-    model.to(args.device)
+    #model.to(args.device)
 
     def preprocess_function(ex_dataset):
         encodings = tokenizer(ex_dataset['sentence1'], ex_dataset['sentence2'])
@@ -354,11 +381,7 @@ def main():
     _,valid_dataset,_ = fetch_data(args) #! 10% of original size
     encoded_val_dataset = list(map(preprocess_function,valid_dataset))
 
-    eval_dataloader = torch.utils.data.DataLoader(encoded_val_dataset, batch_size=args.batch_size, num_workers = 2)
-
-
-
-
+    eval_dataloader = torch.utils.data.DataLoader(encoded_val_dataset, batch_size=args.batch_size, num_workers=2, collate_fn=collate_function(tokenizer,))
 
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(
