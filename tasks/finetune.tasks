@@ -1,0 +1,3 @@
+python finetune.py xnli
+python finetune.py paws-x
+python finetune.py marc

@@ -1,0 +1,15 @@
+python mask.py results/models/marc --seed 0
+python mask.py results/models/marc --seed 1
+python mask.py results/models/marc --seed 2
+python mask.py results/models/marc --seed 3
+python mask.py results/models/marc --seed 4
+python mask.py results/models/paws-x --seed 0
+python mask.py results/models/paws-x --seed 1
+python mask.py results/models/paws-x --seed 2
+python mask.py results/models/paws-x --seed 3
+python mask.py results/models/paws-x --seed 4
+python mask.py results/models/xnli --seed 0
+python mask.py results/models/xnli --seed 1
+python mask.py results/models/xnli --seed 2
+python mask.py results/models/xnli --seed 3
+python mask.py results/models/xnli --seed 4
