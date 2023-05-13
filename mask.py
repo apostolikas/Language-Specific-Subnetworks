@@ -5,21 +5,15 @@ os.environ["WANDB_DISABLED"] = "true"
 os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = 'true'
 
 import argparse
-from torch.utils.data import Dataset, DataLoader, SequentialSampler
-from datasets import load_dataset
+from torch.utils.data import DataLoader
 import random
 import numpy as np
 import torch
 
 from pathlib import Path
-from transformers import (AutoTokenizer,
-                          AutoModelForSequenceClassification,
-                          TrainingArguments,
-                          DataCollatorWithPadding,
-                          Trainer)
-import evaluate
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
 
-from data import get_dataset, ALLOWED_DATASETS, ALLOWED_LANGUAGES
+from data import get_dataset, ALLOWED_LANGUAGES
 
 from bert_experiments import mask_heads
 
@@ -35,7 +29,8 @@ def get_dataloader(args, dataset_name, tokenizer, lang):
     data_loader = DataLoader(dataset,
                              batch_size=args.batch_size,
                              pin_memory=True,
-                             num_workers=1,
+                             num_workers=4,
+                             drop_last=True,
                              collate_fn=DataCollatorWithPadding(tokenizer))
 
     return data_loader
@@ -47,6 +42,7 @@ def main(args):
     dataset_name = Path(args.checkpoint).parent.stem
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    root = os.path.join(args.save_dir, dataset_name)
 
     for lang in args.langs:
 
@@ -60,7 +56,10 @@ def main(args):
         head_mask = mask_heads(args, model, train_loader, dataset_name)
 
         # Save
-        print(head_mask)
+        os.makedirs(root, exist_ok=True)
+        save_path = os.path.join(root, f"{lang}_{args.seed}.pkl")
+        torch.save(head_mask, save_path)
+        print("Saved.")
 
 
 if __name__ == "__main__":
@@ -73,7 +72,7 @@ if __name__ == "__main__":
                         default=ALLOWED_LANGUAGES)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--batch-size', type=int, default=32)
-    parser.add_argument('--sample-n', type=int, default=100)
+    parser.add_argument('--sample-n', type=int, default=5000)
     parser.add_argument('--save-dir', type=str, default='results/pruned_masks')
     parser.add_argument('--masking-amount',
                         type=float,

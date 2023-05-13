@@ -91,7 +91,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=2e-5)
     parser.add_argument('--weight-decay', type=float, default=1e-2)
     parser.add_argument('--seed', type=int, default=0)
-    parser.add_argument('--save-dir', type=str, default="results")
+    parser.add_argument('--save-dir', type=str, default="results/models")
     parser.add_argument('--sample-n',
                         type=int,
                         default=0,
