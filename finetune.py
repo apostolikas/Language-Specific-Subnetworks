@@ -28,8 +28,7 @@ def compute_metrics():
 def main(args):
 
     # Get datasets
-    tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base',
-                                              use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
     train = get_dataset(args.dataset, tokenizer=tokenizer, split='train', sample_n=args.sample_n)
     val = get_dataset(args.dataset, tokenizer=tokenizer, split='validation')
     test = get_dataset(args.dataset, tokenizer=tokenizer, split='test')
@@ -45,18 +44,17 @@ def main(args):
                                       seed=args.seed,
                                       evaluation_strategy="steps",
                                       save_strategy='steps',
-                                      eval_steps=min(1000, args.sample_n),
-                                      save_steps=min(1000, args.sample_n),
+                                      eval_steps=min(500, args.sample_n),
+                                      save_steps=min(500, args.sample_n),
                                       learning_rate=args.lr,
                                       per_device_train_batch_size=args.batch_size,
                                       per_device_eval_batch_size=args.batch_size,
                                       num_train_epochs=args.epochs,
                                       weight_decay=args.weight_decay,
                                       load_best_model_at_end=True,
-                                      metric_for_best_model="eval_accuracy",
-                                      greater_is_better=True,
-                                      save_total_limit=1,
+                                      metric_for_best_model="eval_loss",
                                       dataloader_num_workers=2,
+                                      save_total_limit=1,
                                       fp16=True)
     trainer = Trainer(model,
                       training_args,
@@ -76,6 +74,11 @@ def main(args):
     trainer.evaluate()
     print("Final test evaluation")
     trainer.evaluate(test)
+
+    # Save
+    save_path = os.path.join(args.save_dir, args.dataset, "best")
+    print(f"Saving model to {save_path}")
+    trainer.save_model(save_path)
 
 
 if __name__ == "__main__":
