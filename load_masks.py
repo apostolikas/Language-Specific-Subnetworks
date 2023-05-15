@@ -10,6 +10,7 @@ import statistics
 LANGUAGES = ['en','de','fr','es','zh']
 TASKS = ['marc','paws-x','xnli']
 NUM_SEEDS = 5
+SEEDS = [i for i in range(NUM_SEEDS)]
 
 def load_masks():
     '''
@@ -29,7 +30,7 @@ def load_masks():
                 mask_dict[lang][task][seed] = mask
     return mask_dict
 
-def compute_jaccard_similarity(masks_dict, lang_1, lang_2, task_1, task_2, seed):
+def compute_jaccard_similarity(masks_dict, lang_1, lang_2, task_1, task_2, seed1, seed2):
     '''
     Parameters:
         masks_dict: dict of the form {language: { task: {seed: 2d_mask}}}
@@ -41,11 +42,12 @@ def compute_jaccard_similarity(masks_dict, lang_1, lang_2, task_1, task_2, seed)
     Returns:
         jaccard_sim: int
     '''
-    mask_1 = masks_dict[lang_1][task_1][seed].flatten().tolist()
-    mask_2 = masks_dict[lang_2][task_2][seed].flatten().tolist()
+    mask_1 = masks_dict[lang_1][task_1][seed1].flatten().tolist()
+    mask_2 = masks_dict[lang_2][task_2][seed2].flatten().tolist()
     intersect = len([head_1 for head_1,head_2 in zip(mask_1,mask_2) if head_1==head_2==1])
     union = len([head_1 for head_1,head_2 in zip(mask_1,mask_2) if head_1==1 or head_2==1])
     jaccard_sim = intersect/union
+
     return jaccard_sim
 
 def jaccard_similarity_per_task_pair(masks_dict):
@@ -67,8 +69,8 @@ def jaccard_similarity_per_task_pair(masks_dict):
             tmp_list_jaccard_seeds = []
             jaccard_task_dict[lang][(task_1,task_2)] = {}
             for seed in range(NUM_SEEDS):
-                #! pass same language but different tasks
-                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang, lang, task_1, task_2, seed)
+                #! pass same language, same seed but different tasks
+                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang, lang, task_1, task_2, seed, seed)
 
                 jaccard_task_dict[lang][(task_1,task_2)][seed] = tmp_jaccard_sim
                 tmp_list_jaccard_seeds.append(tmp_jaccard_sim)
@@ -98,8 +100,8 @@ def jaccard_similarity_per_lang_pair(masks_dict):
             tmp_list_jaccard_seeds = []
             jaccard_lang_dict[task][(lang_1,lang_2)] = {}
             for seed in range(NUM_SEEDS):
-                #! pass same task but different languages
-                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang_1, lang_2, task, task, seed)
+                #! pass same task, same seed but different languages
+                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang_1, lang_2, task, task, seed, seed)
 
                 jaccard_lang_dict[task][(lang_1,lang_2)][seed] = tmp_jaccard_sim
                 tmp_list_jaccard_seeds.append(tmp_jaccard_sim)
@@ -110,8 +112,32 @@ def jaccard_similarity_per_lang_pair(masks_dict):
 
     return stats_jaccard_lang_dict
 
+def jaccard_similarity_per_seed_pair(masks_dict):
+    '''
+        same task same language, different seed 
+        Parameters:
+            masks_dict: dict of the form {language: { task: {seed: 2d_mask}}}
+        Returns:
+            stats_jaccard_seed_dict: dict of the form {task: {language: {(seed_i, seed_j) : 'mean_jaccard+-std_jaccard'}}}
+    '''
+    jaccard_seed_dict = {} #for every seed different dict
+    for task in TASKS:
+        jaccard_seed_dict[task] = {}
+
+        for lang in LANGUAGES:
+            tmp_list_jaccard_seeds = []
+            jaccard_seed_dict[task][lang] = {}
+            for seed_i, seed_j in itertools.combinations(SEEDS, r=2):
+                #! pass same task, same language but different seeds
+                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang, lang, task, task, seed_i, seed_j)
+
+                jaccard_seed_dict[task][lang][(seed_i,seed_j)] = tmp_jaccard_sim
+                tmp_list_jaccard_seeds.append(tmp_jaccard_sim)
+
+    return jaccard_seed_dict
+
 
 masks_dict = load_masks()
 jaccard_task_dict = jaccard_similarity_per_task_pair(masks_dict)
 jaccard_lang_dict = jaccard_similarity_per_lang_pair(masks_dict)
-a=1
+jaccard_seeds_dict = jaccard_similarity_per_seed_pair(masks_dict)
