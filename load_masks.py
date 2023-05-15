@@ -115,18 +115,26 @@ def jaccard_similarity_per_seed_pair(masks_dict):
             stats_jaccard_seed_dict: dict of the form {task: {language: {(seed_i, seed_j) : 'jaccard'}}}
     '''
     jaccard_seed_dict = {} 
+    stats_jaccard_seed_dict = {}
     for task in TASKS:
         jaccard_seed_dict[task] = {}
+        stats_jaccard_seed_dict[task] = {}
 
         for lang in LANGUAGES:
             jaccard_seed_dict[task][lang] = {}
+            tmp_list_jaccard_seeds = []
             for seed_i, seed_j in itertools.combinations(SEEDS, r=2):
                 #! pass same task, same language but different seeds
                 tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang, lang, task, task, seed_i, seed_j)
 
                 jaccard_seed_dict[task][lang][(seed_i,seed_j)] = tmp_jaccard_sim
+                tmp_list_jaccard_seeds.append(tmp_jaccard_sim)
 
-    return jaccard_seed_dict
+            mean = round(statistics.mean(tmp_list_jaccard_seeds),3)
+            std = round(statistics.stdev(tmp_list_jaccard_seeds),3)
+            stats_jaccard_seed_dict[task][lang] = f'{mean}\u00B1{std}'# mean +- std
+
+    return stats_jaccard_seed_dict
 
 
 masks_dict = load_masks()
