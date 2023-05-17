@@ -2,7 +2,6 @@ import torch
 import os
 import matplotlib.pyplot as plt
 
-
 LANGUAGES = ['en','de','fr','es','zh']
 TASKS = ['marc','paws-x','xnli']
 NUM_SEEDS = 5
@@ -51,12 +50,11 @@ def determine_importance(masks_dict:dict) -> torch.Tensor:
             most_important_heads_tensor = torch.argwhere(ratio_matrix==torch.max(ratio_matrix))
             ratio_dict[task][lang] = ratio_matrix
             importance_dict[task][lang] = most_important_heads_tensor
-            layer_importance_dict[task][lang] = (torch.sum(ratio_matrix!=0, axis=1).sort()[-1][-1].item(),torch.sum(ratio_matrix==0, axis=1).sort()[-1][-1].item())
-            
+            layer_importance_dict[task][lang] = torch.sum(ratio_matrix!=0, axis=1).sort(descending=True)
     return ratio_dict, importance_dict, layer_importance_dict
 
 
-def visualize_dictionaries(input_dict:dict):
+def visualize_dictionaries(input_dict:dict, mode:str):
     '''
     Plots the content of a nested dicts (1st lang - 2nd task)
     '''
@@ -70,7 +68,10 @@ def visualize_dictionaries(input_dict:dict):
             if col >= 5:
                 break
             ax = axs[row, col]  
-            ax.imshow(tensor, cmap='Blues')  
+            if mode == 'mask':
+                ax.imshow(tensor, cmap='Blues')  # heatmap for masks
+            elif mode == 'importance':
+                ax.bar(tensor[1]+1,tensor[0]) # barplot with layers with most used heads
             ax.set_title(f'Task: {key}, Language: {inner_key}')  
             col += 1
         row += 1
@@ -83,5 +84,4 @@ def visualize_dictionaries(input_dict:dict):
 masks_dict = load_masks()
 
 ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)        
-
-visualize_dictionaries(ratio_dict)
+visualize_dictionaries(layer_importance_dict,'importance')
