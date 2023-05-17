@@ -1,18 +1,6 @@
 import torch
 import os
-
-
-def jaccard_similarity_triplet(x1, x2, x3, x4, x5, n):
-    if n == 3:
-        intersection = x1.intersection(x2, x3)
-        union = x1.union(x2, x3)
-    elif n==5:
-        intersection = x1.intersection(x2, x3, x4, x5)
-        union = x1.union(x2, x3, x4, x5)
-    else:
-        raise Exception("Choose either 3 or 5 (tasks & languages)")
-    similarity = len(intersection) / len(union)
-    return similarity
+import matplotlib.pyplot as plt
 
 
 LANGUAGES = ['en','de','fr','es','zh']
@@ -39,67 +27,61 @@ def load_masks():
     return mask_dict
 
 
-def determine_importance(masks_dict:dict, lang:str, task:str) -> torch.Tensor:
-  
-    count_matrix = torch.zeros((12,12))
-    torch.set_printoptions(precision=1)
-    for _,mask_values in masks_dict[lang][task].items():
-        count_matrix += mask_values
-    ratio_matrix = count_matrix/len(masks_dict[lang][task].keys())
+def determine_importance(masks_dict:dict) -> torch.Tensor:
+    '''
+    Returns:
+        ratio_dict: how many times a head is turned off or not for every language & task
+        importance_dict: location of the most important heads for every language & task in the form (layer,head_index)
+        layer_importance_dict: pair of the layer with the most used heads and the least used heads
+    '''
 
-    _, sorted_layers = torch.sum(ratio_matrix==0, axis=1).sort() # importance in descending order based on the occurences of zeros
-
-    most_important_heads_tensor = torch.argwhere(ratio_matrix==torch.max(ratio_matrix))
-    layer_loc_of_important_head = most_important_heads_tensor[:,0]
-    place_of_important_head = most_important_heads_tensor[:,1]
-
-    for layer,place in zip(layer_loc_of_important_head, place_of_important_head):
-        print('One of the most important heads is the #',place.item()+1, 'in layer',layer.item()+1) # All the printed heads have the same ratio (i.e. 1 - always on)
-    print('Importance of layers in descending order :' ,[x.item()+1 for x in sorted_layers])
-    print('The matrix showing the ratio of how much is used each head\n',ratio_matrix)
-
-    return ratio_matrix
-
-
-def find_layer_patterns(masks_dict:dict) -> dict:
-    
-    language_pattern_dict = {}
-    pattern_dict = {}
-
+    ratio_dict = {}
+    importance_dict = {}
+    layer_importance_dict = {}
     for task in TASKS:
+        ratio_dict[task] = {}
+        importance_dict[task] = {}
+        layer_importance_dict[task] = {}
         for lang in LANGUAGES:
-
             count_matrix = torch.zeros((12,12))
-
+            torch.set_printoptions(precision=1)
             for _,mask_values in masks_dict[lang][task].items():
                 count_matrix += mask_values
-            _, sorted_layers = torch.sum(count_matrix==0, axis=1).sort() # axis = 1 if layer = row
+            ratio_matrix = count_matrix/len(masks_dict[lang][task].keys())
+            most_important_heads_tensor = torch.argwhere(ratio_matrix==torch.max(ratio_matrix))
+            ratio_dict[task][lang] = ratio_matrix
+            importance_dict[task][lang] = most_important_heads_tensor
+            layer_importance_dict[task][lang] = (torch.sum(ratio_matrix!=0, axis=1).sort()[-1][-1].item(),torch.sum(ratio_matrix==0, axis=1).sort()[-1][-1].item())
+            
+    return ratio_dict, importance_dict, layer_importance_dict
 
-            language_pattern_dict[lang] = sorted_layers
-        pattern_dict[task] = language_pattern_dict
 
-    #! Pointless sim always = 1. Must do low level comparison (mask-wise)
-    # Layer-wise comparison (not mask-wise per se) - more high level comparison
-    # for lang in LANGUAGES:
-    #     print('For', lang, ':', jaccard_similarity_triplet(set(pattern_dict['marc'][lang].tolist()),set(pattern_dict['paws-x'][lang].tolist()),set(pattern_dict['xnli'][lang].tolist()),_,_,3))
+def visualize_dictionaries(input_dict:dict):
+    '''
+    Plots the content of a nested dicts (1st lang - 2nd task)
+    '''
+    _, axs = plt.subplots(3, 5, figsize=(8, 8))  
+    row = 0
+    col = 0
+    for key, inner_dict in input_dict.items():
+        if row >= 3:
+            break
+        for inner_key, tensor in inner_dict.items():
+            if col >= 5:
+                break
+            ax = axs[row, col]  
+            ax.imshow(tensor, cmap='Blues')  
+            ax.set_title(f'Task: {key}, Language: {inner_key}')  
+            col += 1
+        row += 1
+        col = 0
+    plt.tight_layout() 
+    plt.show()  
 
-    # for task in TASKS:
-    #     print('For', task, ':', jaccard_similarity_triplet(set(pattern_dict[task]['en'].tolist()),
-    #                                                        set(pattern_dict[task]['de'].tolist()),
-    #                                                        set(pattern_dict[task]['fr'].tolist()),
-    #                                                        set(pattern_dict[task]['es'].tolist()),
-    #                                                        set(pattern_dict[task]['zh'].tolist()),
-    #                                                        5))
-
-    for task in pattern_dict.keys():
-        print('\nFor',task)
-        for lang in language_pattern_dict.keys():
-            print('For', lang, 'the layer importance is' ,pattern_dict[task][lang])
-
-    return pattern_dict
 
 
 masks_dict = load_masks()
-ratio_matrix = determine_importance(masks_dict,'en','marc')
-pattern_dict = find_layer_patterns(masks_dict)
 
+ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)        
+
+visualize_dictionaries(ratio_dict)
