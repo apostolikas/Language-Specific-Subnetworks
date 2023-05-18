@@ -79,9 +79,10 @@ def visualize_dictionaries(input_dict:dict, mode:str):
     plt.tight_layout() 
     plt.show()  
 
+if __name__ == '__main__':
+    masks_dict = load_masks()
+    ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)        
+    visualize_dictionaries(layer_importance_dict,'importance')
 
 
-masks_dict = load_masks()
 
-ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)        
-visualize_dictionaries(layer_importance_dict,'importance')
