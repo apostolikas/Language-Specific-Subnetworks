@@ -2,10 +2,12 @@
 Download gergopool masks from this link https://www.transferxl.com/download/08d4Q1jw024QT
 after unzipping you should have a folder called results
 '''
-
+import numpy as np
 import torch
 import itertools
 import statistics
+import json
+import matplotlib.pyplot as plt
 
 LANGUAGES = ['en','de','fr','es','zh']
 TASKS = ['marc','paws-x','xnli']
@@ -61,6 +63,8 @@ def jaccard_similarity_per_task_pair(masks_dict):
     '''
 
     stats_jaccard_task_dict = {}# mean+-std across seeds
+    max_value = -1
+    print('TASK PAIRS')
     for lang in LANGUAGES:
 
         stats_jaccard_task_dict[lang] = {}
@@ -76,6 +80,11 @@ def jaccard_similarity_per_task_pair(masks_dict):
             mean = round(statistics.mean(tmp_list_jaccard_seeds),3)
             std = round(statistics.stdev(tmp_list_jaccard_seeds),3)
             stats_jaccard_task_dict[lang][(task_1,task_2)] = f'{mean}\u00B1{std}'# mean +- std
+            if max_value < mean:
+                mean = max_value
+                t1,t2 = task_1, task_2
+    print('MEAN ', mean)
+    print(t1, ' ',t2)
 
     return stats_jaccard_task_dict
 
@@ -89,6 +98,8 @@ def jaccard_similarity_per_lang_pair(masks_dict):
             stats_jaccard_lang_dict: dict of the form {task: { (language1, language2): 'mean_jaccard+-std_jaccard'}}
     '''
     stats_jaccard_lang_dict = {}# mean+-std across seeds
+    print('LANGUAGE PAIRS')
+    max_value = -1
     for task in TASKS:
 
         stats_jaccard_lang_dict[task] = {}
@@ -103,6 +114,11 @@ def jaccard_similarity_per_lang_pair(masks_dict):
             mean = round(statistics.mean(tmp_list_jaccard_seeds),3)
             std = round(statistics.stdev(tmp_list_jaccard_seeds),3)
             stats_jaccard_lang_dict[task][(lang_1,lang_2)] = f'{mean}\u00B1{std}'# mean +- std
+            if max_value < mean:
+                mean = max_value
+                t1,t2 = lang_1, lang_2
+    print('MEAN ', mean)
+    print(t1, ' ',t2)
 
     return stats_jaccard_lang_dict
 
@@ -136,8 +152,77 @@ def jaccard_similarity_per_seed_pair(masks_dict):
 
     return stats_jaccard_seed_dict
 
+def plot_matrix(matrix, x_labels, y_labels, save_path, x_title, y_title, colour_map=plt.cm.OrRd):
+    initial_matrix = matrix
+
+    mask =  np.tri(matrix.shape[0], k=-1).T
+    matrix = np.ma.array(matrix, mask=mask)
+
+    fig, ax = plt.subplots(figsize=(9,8))
+    ax.set_xlabel(x_title, labelpad=20)
+    ax.set_ylabel(y_title)
+    ax.xaxis.set_ticks_position('bottom')
+    ax.xaxis.set_label_position('bottom')
+    ax.set_xticks(range(len(x_labels)))
+    ax.set_yticks(range(len(y_labels)))
+    ax.set_xticklabels(x_labels)
+    ax.set_yticklabels(y_labels)
+    # Hide the right and top spines
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    
+    mask =  np.tri(matrix.shape[0], k=0).T # Leave Diagonal Uncoloured
+    mean_matrix_wo_diagonal = np.ma.array(matrix, mask=mask) 
+    
+    ax.imshow(mean_matrix_wo_diagonal, cmap=colour_map)
+    plt.gca().xaxis.tick_bottom()
+    
+    
+    for i in range(len(matrix)):
+        for j in range(len(matrix[0])):
+            if i <= j:
+                mean = initial_matrix[i, j]
+                text = f"{mean:.2f}"
+                # color = 'black' if mean < mean_mean or i == j else 'white'
+                ax.text(i, j, text, va='center', ha='center', color='black')
+    if save_path:
+        fig.savefig(save_path)
+
+def intersection(lst1, lst2):
+    lst3 = [value for value in lst1 if value in lst2]
+    return lst3
+
+def surviving_per_task(masks_dict):
+    '''
+    create super-survivors for every language 
+    overlap_lang(i,i): number of surviving heads common for all seeds for task i
+    overlap_langll(i,j): intersect(number of surviving heads common for all seeds for task i, number of 
+        surviving heads common for all seeds for task j)
+    '''
+    for lang in LANGUAGES:
+        heads_ids = []
+        for task in TASKS:
+            cur_task_heads_ids = []
+            combined_iterable = zip(*[masks_dict[lang][task][seed].flatten().tolist() for seed in SEEDS])
+            for i, masks_tuple in enumerate(combined_iterable):
+                if all(mask_seed == 1.0 for mask_seed in masks_tuple):
+                    cur_task_heads_ids.append(i)
+            heads_ids.append(cur_task_heads_ids)
+
+        overlap_lang = np.zeros((len(TASKS),len(TASKS)))
+        for task_id in range(len(TASKS)):
+            overlap_lang[task_id, task_id] = len(heads_ids[task_id])
+        for task_id1, task_id2 in itertools.combinations([k for k in range(len(TASKS))], r=2):
+            overlap_lang[task_id1, task_id2] =  len(intersection(heads_ids[task_id1], heads_ids[task_id2]))
+        plot_matrix(overlap_lang, TASKS, TASKS, f'super_survivors_{lang}', 'TASK', 'TASK')
+
 
 masks_dict = load_masks()
+surviving_per_task(masks_dict)
 jaccard_task_dict = jaccard_similarity_per_task_pair(masks_dict)
 jaccard_lang_dict = jaccard_similarity_per_lang_pair(masks_dict)
 jaccard_seeds_dict = jaccard_similarity_per_seed_pair(masks_dict)
+
+A=1
+# with open('jaccard_task_dict.json', 'w') as file:
+#      json.dumps(jaccard_task_dict)
