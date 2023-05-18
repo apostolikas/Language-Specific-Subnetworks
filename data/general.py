@@ -18,12 +18,14 @@ class ClassificationDataset(ABC):
                  tokinizer: AutoTokenizer,
                  lang: str = None,
                  split: str = 'train',
-                 sample_n: int = 0):
+                 sample_n: int = 0,
+                 tokenizer_kwargs: dict = {}):
         self.dataset_name = dataset_name
         self.tokenizer = tokinizer
         self.langs = [lang] if lang is not None else ALLOWED_LANGUAGES
         self.split = split
         self.dataset = self._load_dataset(sample_n)
+        self.tokenizer_kwargs = tokenizer_kwargs
 
     def _load_dataset(self, sample_n: int):
         dataset = concatenate_datasets(
@@ -51,7 +53,7 @@ class ClassificationDataset(ABC):
         inputs = self._get_input(row)
 
         # Tokenize & Encode
-        encodings = self.tokenizer(*inputs, padding=True, truncation=True)
+        encodings = self.tokenizer(*inputs, padding=True, truncation=True, **self.tokenizer_kwargs)
 
         targets = self._get_target(row)
 
