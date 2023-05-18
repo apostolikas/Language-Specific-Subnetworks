@@ -72,7 +72,7 @@ if __name__ == "__main__":
                         default=ALLOWED_LANGUAGES)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--batch-size', type=int, default=32)
-    parser.add_argument('--sample-n', type=int, default=5000)
+    parser.add_argument('--sample-n', type=int, default=10000)
     parser.add_argument('--save-dir', type=str, default='results/pruned_masks')
     parser.add_argument('--masking-amount',
                         type=float,

@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 from transformers import (AutoTokenizer,
+                          AutoConfig,
                           AutoModelForSequenceClassification,
                           TrainingArguments,
                           DataCollatorWithPadding,
@@ -25,6 +26,21 @@ def compute_metrics():
     return accuracy
 
 
+class L1Trainer(Trainer):
+
+    def __init__(self, *args, reg=0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.reg = reg
+
+    def compute_loss(self, model, inputs, **kwargs):
+        # implement custom logic here
+        outputs = super().compute_loss(model, inputs, **kwargs)
+        if not isinstance(outputs, tuple):
+            for param in model.parameters():
+                outputs += torch.norm(param, p=1) * self.reg
+        return outputs
+
+
 def main(args):
 
     # Get datasets
@@ -35,8 +51,12 @@ def main(args):
 
     # Get model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = AutoModelForSequenceClassification.from_pretrained(args.resume,
-                                                               num_labels=train.n_classes)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        args.resume,
+        num_labels=train.n_classes,
+        hidden_dropout_prob=args.dropout,
+        attention_probs_dropout_prob=args.dropout)
+
     model = model.to(device)
 
     # Define training hyperparameters
@@ -55,15 +75,17 @@ def main(args):
                                       metric_for_best_model="eval_loss",
                                       dataloader_num_workers=2,
                                       save_total_limit=1,
+                                      warmup_steps=1000,
                                       fp16=True)
-    trainer = Trainer(model,
-                      training_args,
-                      train_dataset=train,
-                      eval_dataset=val,
-                      data_collator=DataCollatorWithPadding(tokenizer),
-                      tokenizer=tokenizer,
-                      compute_metrics=compute_metrics(),
-                      callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
+    trainer = L1Trainer(model,
+                        training_args,
+                        reg=args.l1,
+                        train_dataset=train,
+                        eval_dataset=val,
+                        data_collator=DataCollatorWithPadding(tokenizer),
+                        tokenizer=tokenizer,
+                        compute_metrics=compute_metrics(),
+                        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
 
     # Train
     print('Device ', device)
@@ -88,9 +110,11 @@ if __name__ == "__main__":
     parser.add_argument('--resume', type=str, default="xlm-roberta-base", help="path to checkpoint")
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument('--dropout', type=float, default=0.1)
     parser.add_argument('--lr', type=float, default=2e-5)
     parser.add_argument('--weight-decay', type=float, default=1e-2)
     parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--l1', type=float, default=1e-6)
     parser.add_argument('--save-dir', type=str, default="results/models")
     parser.add_argument('--sample-n',
                         type=int,
