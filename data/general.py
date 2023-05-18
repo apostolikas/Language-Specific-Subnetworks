@@ -31,7 +31,7 @@ class ClassificationDataset(ABC):
         return self._sample(dataset, sample_n)
 
     def _sample(self, dataset: Dataset, n: int):
-        if n == 0:
+        if n == 0 or len(dataset) <= n:
             return dataset
         choose_n = np.random.choice(len(dataset), n, replace=False).tolist()
         return torch.utils.data.Subset(dataset, choose_n)
