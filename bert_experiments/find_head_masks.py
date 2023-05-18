@@ -137,7 +137,7 @@ def mask_heads(args, model, eval_dataloader, task_name):
 
     """
     _,head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False)
-    all_head_importance = [head_importance]
+    all_head_importance = []
     
     preds = np.argmax(preds, axis=1)
     original_score = (preds == labels).mean()
@@ -153,6 +153,9 @@ def mask_heads(args, model, eval_dataloader, task_name):
         i += 1
         # heads from least important to most - keep only not-masked heads
         head_importance[head_mask == 0.0] = float("Inf")
+        all_head_importance.append(head_importance)
+            
+
         current_heads_to_mask = head_importance.view(-1).sort()[1]
 
         if len(current_heads_to_mask) <= num_to_mask:
@@ -175,11 +178,7 @@ def mask_heads(args, model, eval_dataloader, task_name):
         # Compute metric and head importance again
         _,head_importance, preds, labels = compute_heads_importance(
             args, model, eval_dataloader, compute_entropy=False, head_mask=new_head_mask
-        )
-     
-        all_head_importance.append(head_importance)
-        
-
+        )    
         preds = np.argmax(preds, axis=1)
         current_score = (preds == labels).mean()
 
@@ -187,6 +186,12 @@ def mask_heads(args, model, eval_dataloader, task_name):
         print(f"remaining heads {new_head_mask.sum()}", end=" ")
         print(f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)")
         # break
+    #! this wasn't done in the last iteration so I do it here after the iteration ends
+    head_mask = new_head_mask.clone()  # save current head mask
+    # heads from least important to most - keep only not-masked heads
+    head_importance[head_mask == 0.0] = float("Inf")
+    all_head_importance.append(head_importance)
+
 
     return head_mask, all_head_importance
 
