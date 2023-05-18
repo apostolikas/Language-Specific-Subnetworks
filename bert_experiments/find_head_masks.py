@@ -131,8 +131,14 @@ def compute_heads_importance(args,
 def mask_heads(args, model, eval_dataloader, task_name):
     """ This method shows how to mask head (set some heads to zero), to test the effect on the network,
         based on the head importance scores, as described in Michel et al. (http://arxiv.org/abs/1905.10650)
+
+    #! Now I return extra the following the following argument apart from head_mask
+        all_head_importance: list of 2d tensors with the head_importance scores at each time step
+
     """
-    _, head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False)
+    _,head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False)
+    all_head_importance = []
+    
     preds = np.argmax(preds, axis=1)
     original_score = (preds == labels).mean()
 
@@ -147,6 +153,9 @@ def mask_heads(args, model, eval_dataloader, task_name):
         i += 1
         # heads from least important to most - keep only not-masked heads
         head_importance[head_mask == 0.0] = float("Inf")
+        all_head_importance.append(head_importance)
+            
+
         current_heads_to_mask = head_importance.view(-1).sort()[1]
 
         if len(current_heads_to_mask) <= num_to_mask:
@@ -167,9 +176,9 @@ def mask_heads(args, model, eval_dataloader, task_name):
             break
 
         # Compute metric and head importance again
-        _, head_importance, preds, labels = compute_heads_importance(
+        _,head_importance, preds, labels = compute_heads_importance(
             args, model, eval_dataloader, compute_entropy=False, head_mask=new_head_mask
-        )
+        )    
         preds = np.argmax(preds, axis=1)
         current_score = (preds == labels).mean()
 
@@ -177,7 +186,7 @@ def mask_heads(args, model, eval_dataloader, task_name):
         print(f"remaining heads {new_head_mask.sum()}", end=" ")
         print(f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)")
 
-    return head_mask
+    return head_mask, all_head_importance
 
 
 def prune_heads(args, model, eval_dataloader, head_mask, task_name):
