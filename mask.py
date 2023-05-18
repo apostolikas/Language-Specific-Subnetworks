@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 import random
 import numpy as np
 import torch
+import pickle
 
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
@@ -53,12 +54,31 @@ def main(args):
         model = AutoModelForSequenceClassification.from_pretrained(args.checkpoint).to(device)
 
         # Calculate mask
-        head_mask = mask_heads(args, model, train_loader, dataset_name)
+        head_mask, head_importance, preds, labels = mask_heads(args, model, train_loader, dataset_name)
 
-        # Save
+        # Save head_mask
         os.makedirs(root, exist_ok=True)
         save_path = os.path.join(root, f"{lang}_{args.seed}.pkl")
         torch.save(head_mask, save_path)
+
+        # Save head importance
+        os.makedirs(root, exist_ok=True)
+        save_path = os.path.join(root, f"head_imp_{lang}_{args.seed}.pickle")
+        with open(save_path, 'wb') as f:
+            pickle.dump(head_importance, f)
+
+        # # Save predictions
+        os.makedirs(root, exist_ok=True)
+        save_path = os.path.join(root, f"preds_{lang}_{args.seed}.pickle")
+        with open(save_path, 'wb') as f:
+            pickle.dump(preds, f)
+        
+        # Save labels
+        os.makedirs(root, exist_ok=True)
+        save_path = os.path.join(root, f"labels_{lang}_{args.seed}.pickle")
+        with open(save_path, 'wb') as f:
+            pickle.dump(labels, f)
+
         print("Saved.")
 
 
@@ -94,4 +114,6 @@ if __name__ == "__main__":
         help="Don't normalize all importance scores between 0 and 1",
     )
     args = parser.parse_args()
+    # args.checkpoint ='results/models/xnli/best'
+    # args.seed = 0
     main(args)

@@ -131,8 +131,16 @@ def compute_heads_importance(args,
 def mask_heads(args, model, eval_dataloader, task_name):
     """ This method shows how to mask head (set some heads to zero), to test the effect on the network,
         based on the head importance scores, as described in Michel et al. (http://arxiv.org/abs/1905.10650)
+
+    #! Now I return extra the following the 3 arguments apart from head_mask
+        all_head_importance: list of 2d tensors with the head_importance scores at each time step
+        preds: predictions from the last step
+        labels: labels from the last step
+
     """
-    _, head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False)
+    _,head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False)
+    all_head_importance = [head_importance]
+    
     preds = np.argmax(preds, axis=1)
     original_score = (preds == labels).mean()
 
@@ -167,17 +175,22 @@ def mask_heads(args, model, eval_dataloader, task_name):
             break
 
         # Compute metric and head importance again
-        _, head_importance, preds, labels = compute_heads_importance(
+        _,head_importance, preds, labels = compute_heads_importance(
             args, model, eval_dataloader, compute_entropy=False, head_mask=new_head_mask
         )
+     
+        all_head_importance.append(head_importance)
+        
+
         preds = np.argmax(preds, axis=1)
         current_score = (preds == labels).mean()
 
         print(f"Head Masking: current score: {current_score}", end=" ")
         print(f"remaining heads {new_head_mask.sum()}", end=" ")
         print(f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)")
+        # break
 
-    return head_mask
+    return head_mask, all_head_importance, preds, labels
 
 
 def prune_heads(args, model, eval_dataloader, head_mask, task_name):
