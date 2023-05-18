@@ -36,3 +36,4 @@ def create_big_plot(images):
 if __name__ == '__main__':
     masks_dict = load_masks()
     images = show_survival_prob_plots(masks_dict)
+    create_big_plot(images)
