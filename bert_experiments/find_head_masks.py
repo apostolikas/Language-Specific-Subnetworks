@@ -185,13 +185,6 @@ def mask_heads(args, model, eval_dataloader, task_name):
         print(f"Head Masking: current score: {current_score}", end=" ")
         print(f"remaining heads {new_head_mask.sum()}", end=" ")
         print(f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)")
-        # break
-    #! this wasn't done in the last iteration so I do it here after the iteration ends
-    head_mask = new_head_mask.clone()  # save current head mask
-    # heads from least important to most - keep only not-masked heads
-    head_importance[head_mask == 0.0] = float("Inf")
-    all_head_importance.append(head_importance)
-
 
     return head_mask, all_head_importance
 

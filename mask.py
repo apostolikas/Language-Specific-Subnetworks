@@ -102,6 +102,4 @@ if __name__ == "__main__":
         help="Don't normalize all importance scores between 0 and 1",
     )
     args = parser.parse_args()
-    # args.checkpoint ='results/models/xnli/best'
-    # args.seed = 0
     main(args)
