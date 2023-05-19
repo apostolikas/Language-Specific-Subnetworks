@@ -8,6 +8,8 @@ import argparse
 import torch
 from pathlib import Path
 import numpy as np
+from tqdm import tqdm
+from torch.utils.data import DataLoader
 from transformers import (AutoTokenizer,
                           AutoModelForSequenceClassification,
                           TrainingArguments,
@@ -30,6 +32,35 @@ def compute_metrics():
     return accuracy
 
 
+def get_model_accuracy(model, dataset, batch_size, head_mask=None):
+
+    data_loader = DataLoader(dataset,
+                             batch_size=batch_size,
+                             pin_memory=True,
+                             num_workers=4,
+                             drop_last=False,
+                             collate_fn=DataCollatorWithPadding(dataset.tokenizer))
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    total, hits = 0, 0
+
+    if head_mask is not None:
+        head_mask = head_mask.to(device)
+
+    for batch in tqdm(data_loader, desc='Evaluation'):
+        batch = {k: v.to(device, non_blocking=True) for (k, v) in batch.items()}
+        if head_mask is not None:
+            batch.update({"head_mask": head_mask})
+        with torch.no_grad():
+            logits = model(**batch)[1]
+            preds = logits.detach().argmax(dim=1)
+            labels = batch['labels'].detach()
+            total += len(preds)
+            hits += (preds == labels).sum().item()
+
+    return hits / total
+
+
 def main(args):
 
     # Retreiving dataset name
@@ -45,23 +76,15 @@ def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = AutoModelForSequenceClassification.from_pretrained(args.checkpoint).to(device)
 
-    # Define training hyperparameters
-    training_args = TrainingArguments(output_dir="./",
-                                      report_to=None,
-                                      disable_tqdm=True,
-                                      per_device_eval_batch_size=args.batch_size,
-                                      dataloader_num_workers=2,
-                                      fp16=True)
-    trainer = Trainer(model,
-                      training_args,
-                      data_collator=DataCollatorWithPadding(tokenizer),
-                      tokenizer=tokenizer,
-                      compute_metrics=compute_metrics())
-
     # Eval
     results = {}
     for lang, dataset in datasets.items():
-        results[lang] = trainer.evaluate(dataset)['eval_accuracy']
+        if args.mask:
+            head_mask = torch.load(
+                os.path.join(args.mask_dir, dataset_name, f"{lang}_{args.mask_seed}.pkl"))
+        else:
+            head_mask = None
+        results[lang] = get_model_accuracy(model, dataset, args.batch_size, head_mask)
 
     for lang, acc in results.items():
         print(f"Results for {lang}: {acc * 100:.2f}%")
@@ -77,6 +100,9 @@ if __name__ == "__main__":
                         choices=ALLOWED_LANGUAGES,
                         default=ALLOWED_LANGUAGES)
     parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--mask', action='store_true')
+    parser.add_argument('--mask-dir', default='results/pruned_masks')
+    parser.add_argument('--mask-seed', type=int, default=0)
 
     args = parser.parse_args()
 
