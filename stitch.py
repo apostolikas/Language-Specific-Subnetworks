@@ -38,7 +38,8 @@ def stitch(args):
     # Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = StitchNet(args.checkpoint1, args.checkpoint2, args.layer).to(device)
-    model.find_optimal_init(data_loader)
+    if not args.no_psinv_init:
+        model.find_optimal_init(data_loader)
     model.load_masks(args.mask1, args.mask2)
 
     # Shuffle mask of first net
@@ -121,12 +122,13 @@ if __name__ == "__main__":
     parser.add_argument('lang', type=str, choices=ALLOWED_LANGUAGES)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--sample-n', type=int, default=10000)
-    parser.add_argument('--epochs', type=int, default=2)
+    parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--mask-dir', type=str, default='results/pruned_masks')
     parser.add_argument('--save-path', type=str, default='results/stitch/dev.csv')
     parser.add_argument('--randomize', action='store_true')
+    parser.add_argument('--no-psinv-init', action='store_true')
 
     args = parser.parse_args()
     stitch(args)

@@ -12,8 +12,10 @@ class StitchNet(nn.Module):
         self.end_model = AutoModelForSequenceClassification.from_pretrained(ckp2)
         self.layer_idx = layer_idx
         self.hidden_size = self.front_model.config.hidden_size
+        self.n_heads = self.front_model.config.num_attention_heads
+        self.n_dim = self.hidden_size // self.n_heads
 
-        self.transform = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.transform = nn.Linear(self.n_heads, self.n_heads, bias=False)
 
         self._freeze_nets()
         self.front_model.hooks = []
@@ -36,16 +38,16 @@ class StitchNet(nn.Module):
         self._register_both_fw_hooks()
 
         # Save activations
-        act1 = torch.empty(0, self.hidden_size).to(device)
-        act2 = torch.empty(0, self.hidden_size).to(device)
+        act1 = torch.empty(0, 8, self.n_dim, self.n_heads).to(device)
+        act2 = torch.empty(0, 8, self.n_dim, self.n_heads).to(device)
         for batch in loader:
             batch = {k: v.to(device) for (k, v) in batch.items()}
             with torch.no_grad():
                 self.front_model(**batch)
                 self.end_model(**batch)
-                act1 = torch.cat([act1, self.front_model.activation.view(-1, self.hidden_size)])
-                act2 = torch.cat([act2, self.end_model.activation.view(-1, self.hidden_size)])
-            if len(act1) > 2000:
+                act1 = torch.cat([act1, self.front_model.activation[:, :8]])
+                act2 = torch.cat([act2, self.end_model.activation[:, :8]])
+            if len(act1) > 100:
                 break
 
         # Initialize weights
@@ -89,6 +91,7 @@ class StitchNet(nn.Module):
 
         def _save_activations_hook(module, m_in, m_out):
             m_out = m_out[0]
+            m_out = m_out.view(m_out.shape[0], -1, self.n_heads, self.n_dim).permute(0, 1, 3, 2)
             model.activation = m_out.detach()
 
         layer = model.roberta.encoder.layer[self.layer_idx].attention
@@ -99,6 +102,9 @@ class StitchNet(nn.Module):
 
         def _override_activations_hook(module, m_in, m_out):
             activation = model.activation.clone()
+            activation = activation.permute(0, 1, 3, 2).reshape(activation.shape[0],
+                                                                -1,
+                                                                self.hidden_size)
             model.activation = None
             return (activation,)
 
@@ -119,8 +125,8 @@ class StitchNet(nn.Module):
     # =======================================================================
 
     def _pseudo_inverse(self, x1, x2):
-        x1 = x1.view(x1.shape[0], -1)
-        x2 = x2.view(x2.shape[0], -1)
+        x1 = x1.reshape(-1, x1.shape[-1])
+        x2 = x2.reshape(-1, x2.shape[-1])
 
         if not x1.shape[0] == x2.shape[0]:
             raise ValueError('Spatial size of compared neurons must match when ' \
