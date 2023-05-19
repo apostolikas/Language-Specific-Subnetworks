@@ -99,9 +99,8 @@ class StitchNet(nn.Module):
 
         def _override_activations_hook(module, m_in, m_out):
             activation = model.activation.clone()
-            m_out[0] = activation
             model.activation = None
-            return m_out
+            return (activation,)
 
         layer = model.roberta.encoder.layer[self.layer_idx].attention
         hook = layer.register_forward_hook(_override_activations_hook)
