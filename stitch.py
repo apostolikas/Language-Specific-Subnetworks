@@ -20,18 +20,30 @@ from mask import get_dataloader, set_seed
 from eval import get_model_accuracy
 
 
+def randomize_mask(mask):
+    mask = mask.T
+    for i, row in enumerate(mask):
+        mask[i] = row[torch.randperm(len(row))]
+    return mask.T
+
+
 def stitch(args):
 
     set_seed(args.seed)
 
-    # data
+    # Data
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
     data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang)
 
+    # Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = StitchNet(args.checkpoint1, args.checkpoint2, args.layer).to(device)
     model.find_optimal_init(data_loader)
     model.load_masks(args.mask1, args.mask2)
+
+    # Shuffle mask of first net
+    if args.randomize:
+        model.front_mask = randomize_mask(model.front_mask)
 
     optimizer = torch.optim.Adam(model.transform.parameters(), lr=args.lr)
 
@@ -113,6 +125,7 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--mask-dir', type=str, default='results/pruned_masks')
     parser.add_argument('--save-path', type=str, default='results/stitch/dev.csv')
+    parser.add_argument('--randomize', action='store_true')
 
     args = parser.parse_args()
     stitch(args)
