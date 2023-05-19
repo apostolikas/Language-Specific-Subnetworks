@@ -22,7 +22,7 @@ from eval import get_model_accuracy
 
 def randomize_mask(mask):
     mask = mask.T
-    for i, row in enumerate(mask):
+    for i, row in enumerate(mask[:-1]):
         mask[i] = row[torch.randperm(len(row))]
     return mask.T
 
@@ -44,6 +44,7 @@ def stitch(args):
     # Shuffle mask of first net
     if args.randomize:
         model.front_mask = randomize_mask(model.front_mask)
+        # model.end_mask = randomize_mask(model.end_mask)
 
     optimizer = torch.optim.Adam(model.transform.parameters(), lr=args.lr)
 
