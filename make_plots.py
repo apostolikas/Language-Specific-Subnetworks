@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2 #maybe this will be removed for the final version
+
 def plot_lower_triangular_matrix(matrix, x_labels, y_labels, save_path, x_title, y_title, colour_map=plt.cm.OrRd):
     initial_matrix = matrix
 
@@ -36,7 +38,11 @@ def plot_lower_triangular_matrix(matrix, x_labels, y_labels, save_path, x_title,
     if save_path:
         fig.savefig(save_path)
 
-def plot_square_matrix(matrix, x_labels, y_labels, save_path, x_title, y_title, title, colour_map=plt.cm.OrRd):
+def plot_square_matrix(matrix, x_labels, y_labels, save_path, x_title, y_title, title, colour_map=plt.cm.OrRd,
+                       change_colors=False):
+    '''
+    matrix should be a numpy array
+    '''
     fig, ax = plt.subplots(figsize=(9,8))
     ax.set_xlabel(x_title, labelpad=20)
     ax.set_ylabel(y_title)
@@ -52,9 +58,24 @@ def plot_square_matrix(matrix, x_labels, y_labels, save_path, x_title, y_title, 
     for i in range(len(matrix)):
         for j in range(len(matrix[0])):
             cell_value = matrix[i,j]
-            ax.text(j, i, f"{cell_value:.2f}\n", va='center', ha='center')
+            if not change_colors:
+                ax.text(j, i, f"{cell_value:.2f}\n", va='center', ha='center')
+            else:
+                if cell_value > 0:
+                    color = 'black'
+                else:
+                    color = 'white'
+                ax.text(j, i, f"{cell_value:.2f}\n", va='center', ha='center', color=color)
     if save_path:
         fig.savefig(save_path, bbox_inches='tight')
+    plt.close()
     # maybe we can remove also the titles I am not that it is a good idea
     # plt.title(title)
-    plt.show()
+    # plt.show()
+
+def create_big_plot(images,plt_name):
+    '''
+    images : list of list 
+    '''
+    im_tile = cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in images])
+    cv2.imwrite(plt_name, im_tile)

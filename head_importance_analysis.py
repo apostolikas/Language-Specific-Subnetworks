@@ -1,17 +1,25 @@
 import pickle
 import os
 import torch
+import cv2
+import numpy as np
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.metrics import pairwise_distances
 from collections import defaultdict
 from mask import set_seed
 import argparse
+from make_plots import plot_square_matrix, create_big_plot
+from call_plots import show_timesteps_head_scores
+import matplotlib.pyplot as plt
 
 # settings
 LANGUAGES = ['en','de','fr','es','zh']
 TASKS = ['marc','paws-x','xnli']
 NUM_SEEDS = 5
 SEEDS = [i for i in range(NUM_SEEDS)]
+
+#I get a memory leak for k-means without this line
+os.environ["OMP_NUM_THREADS"] = '1'
 def load_head_importance_scores():
     '''
     Return:
@@ -22,6 +30,7 @@ def load_head_importance_scores():
     last_step_head_scores = [] 
     all_steps_head_scores = []
     last_step_head_scores_info = []  
+    max_steps = -1
     for lang in LANGUAGES:
         for task in TASKS:
             for seed in SEEDS:
@@ -35,9 +44,12 @@ def load_head_importance_scores():
 
                     last_step_head_scores.append(tmp_last_head_scores) 
                     last_step_head_scores_info.append((task, lang, seed))
+                    if max_steps < len(tmp_all_head_scores):
+                        max_steps = len(tmp_all_head_scores)
                     all_steps_head_scores.append(tmp_all_head_scores)
 
     assert(len(last_step_head_scores) == len(last_step_head_scores_info) == len(all_steps_head_scores) == 75)
+    print(f'max time steps{max_steps}')
 
     return last_step_head_scores, last_step_head_scores_info, all_steps_head_scores
 
@@ -93,12 +105,14 @@ def main(args):
 
     cluster_statistics(last_step_head_scores_info, cluster_labels, args.num_clusters)
 
-    #todo add plots for same language, same task, same seed and see how the head importance scores change with time
-
+    if args.plot_timesteps:
+        show_timesteps_head_scores(all_steps_head_scores, last_step_head_scores_info)
+   
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Head importance analysis')
     parser.add_argument('--num_clusters', type=int, default=15)
     parser.add_argument('--algorithm', default='kmeans', choices=['kmeans', 'hierarchical'], 
-                        help='list servers, storage, or both (default: %(default)s)') 
+                        help='clustering algorithm that will be used either kmeans or hierarchical')
+    parser.add_argument('--plot_timesteps',type=bool, default=False) # a lot of big plots 
     args = parser.parse_args()
     main(args)
