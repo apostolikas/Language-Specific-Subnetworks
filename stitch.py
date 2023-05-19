@@ -70,6 +70,7 @@ def stitch(args):
     results = {
         "dataset": args.dataset,
         "lang": args.lang,
+        "layer": args.layer,
         "front_model": model_name1,
         "end_model": model_name2,
         "front_mask": mask_task1,
