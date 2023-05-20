@@ -138,7 +138,7 @@ def mask_heads(args, model, eval_dataloader, task_name):
     """
     _,head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False)
     all_head_importance = []
-    
+
     preds = np.argmax(preds, axis=1)
     original_score = (preds == labels).mean()
 
@@ -154,7 +154,6 @@ def mask_heads(args, model, eval_dataloader, task_name):
         # heads from least important to most - keep only not-masked heads
         head_importance[head_mask == 0.0] = float("Inf")
         all_head_importance.append(head_importance)
-            
 
         current_heads_to_mask = head_importance.view(-1).sort()[1]
 
@@ -169,16 +168,17 @@ def mask_heads(args, model, eval_dataloader, task_name):
                 break
             layer_idx = head.item() // model.roberta.config.num_attention_heads
             head_idx = head.item() % model.roberta.config.num_attention_heads
-            new_head_mask[layer_idx][head_idx] = 0.0
-            selected_heads_to_mask.append(head.item())
+            if new_head_mask[layer_idx].sum() > 1:
+                new_head_mask[layer_idx][head_idx] = 0.0
+                selected_heads_to_mask.append(head.item())
 
         if not selected_heads_to_mask:
             break
 
         # Compute metric and head importance again
-        _,head_importance, preds, labels = compute_heads_importance(
+        _, head_importance, preds, labels = compute_heads_importance(
             args, model, eval_dataloader, compute_entropy=False, head_mask=new_head_mask
-        )    
+        )
         preds = np.argmax(preds, axis=1)
         current_score = (preds == labels).mean()
 
