@@ -42,7 +42,8 @@ class StitchNet(nn.Module):
         act1 = torch.empty(0, 8, self.n_dim, self.n_heads).to(device)
         act2 = torch.empty(0, 8, self.n_dim, self.n_heads).to(device)
         for batch in loader:
-            batch = {k: v.to(device) for (k, v) in batch.items()}
+            _ = batch.pop('labels')
+            batch = {k: v.to(device, non_blocking=True) for (k, v) in batch.items()}
             with torch.no_grad():
                 self.front_model(**batch)
                 self.end_model(**batch)
@@ -62,7 +63,10 @@ class StitchNet(nn.Module):
 
     def forward(self, *args, **kwargs):
         with torch.no_grad():
-            self.front_model(*args, head_mask=self.front_mask, **kwargs)
+            # Note: leaving out label because number of classes might differ
+            self.front_model(kwargs['input_ids'],
+                             attention_mask=kwargs['attention_mask'],
+                             head_mask=self.front_mask)
         activation = self.front_model.activation
         self.front_model.activation.activation = None
         transformed_activation = self.transform(activation)
@@ -103,7 +107,7 @@ class StitchNet(nn.Module):
 
         layer = model.roberta.encoder.layer[self.layer_idx].intermediate
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        layer_copy = deepcopy(layer).to(device)
+        layer_copy = deepcopy(layer).to(device, non_blocking=True)
 
         def _override_activations_hook(module, m_in, m_out):
             activation = model.activation

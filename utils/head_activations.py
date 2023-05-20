@@ -31,9 +31,9 @@ def get_activations(model, dataloader, head_mask):
 
     for batch in dataloader:
 
-        input_ids = batch['input_ids'].to(model.device)
-        input_mask = batch['attention_mask'].to(model.device)
-        label_ids = batch['labels'].to(model.device)
+        input_ids = batch['input_ids'].to(model.device, non_blocking=True)
+        input_mask = batch['attention_mask'].to(model.device, non_blocking=True)
+        label_ids = batch['labels'].to(model.device, non_blocking=True)
 
         with torch.no_grad():
             model(input_ids,
