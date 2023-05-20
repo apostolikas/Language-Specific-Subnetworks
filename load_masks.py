@@ -8,6 +8,7 @@ import itertools
 import statistics
 import json
 import matplotlib.pyplot as plt
+
 from make_plots import plot_lower_triangular_matrix
 LANGUAGES = ['en','de','fr','es','zh']
 TASKS = ['marc','paws-x','xnli']
@@ -32,7 +33,7 @@ def load_masks():
                 mask_dict[lang][task][seed] = mask
     return mask_dict
 
-def compute_jaccard_similarity(masks_dict, lang_1, lang_2, task_1, task_2, seed1, seed2):
+def compute_jaccard_similarity(mask_1, mask_2):
     '''
     Parameters:
         masks_dict: dict of the form {language: { task: {seed: 2d_mask}}}
@@ -44,8 +45,6 @@ def compute_jaccard_similarity(masks_dict, lang_1, lang_2, task_1, task_2, seed1
     Returns:
         jaccard_sim: int
     '''
-    mask_1 = masks_dict[lang_1][task_1][seed1].flatten().tolist()
-    mask_2 = masks_dict[lang_2][task_2][seed2].flatten().tolist()
     intersect = len([head_1 for head_1,head_2 in zip(mask_1,mask_2) if head_1==head_2==1])
     union = len([head_1 for head_1,head_2 in zip(mask_1,mask_2) if head_1==1 or head_2==1])
     jaccard_sim = intersect/union
@@ -74,7 +73,10 @@ def jaccard_similarity_per_task_pair(masks_dict):
 
             for seed in range(NUM_SEEDS):
                 #! pass same language, same seed but different tasks
-                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang, lang, task_1, task_2, seed, seed)
+                mask_1 = masks_dict[lang][task_1][seed].flatten().tolist()
+                mask_2 = masks_dict[lang][task_2][seed].flatten().tolist()
+
+                tmp_jaccard_sim = compute_jaccard_similarity(mask_1, mask_2)
                 tmp_list_jaccard_seeds.append(tmp_jaccard_sim)
 
             mean = round(statistics.mean(tmp_list_jaccard_seeds),3)
@@ -108,7 +110,10 @@ def jaccard_similarity_per_lang_pair(masks_dict):
             tmp_list_jaccard_seeds = []
             for seed in range(NUM_SEEDS):
                 #! pass same task, same seed but different languages
-                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang_1, lang_2, task, task, seed, seed)
+                mask_1 = masks_dict[lang_1][task][seed].flatten().tolist()
+                mask_2 = masks_dict[lang_2][task][seed].flatten().tolist()
+
+                tmp_jaccard_sim = compute_jaccard_similarity(mask_1, mask_2)
                 tmp_list_jaccard_seeds.append(tmp_jaccard_sim)
 
             mean = round(statistics.mean(tmp_list_jaccard_seeds),3)
@@ -141,7 +146,9 @@ def jaccard_similarity_per_seed_pair(masks_dict):
             tmp_list_jaccard_seeds = []
             for seed_i, seed_j in itertools.combinations(SEEDS, r=2):
                 #! pass same task, same language but different seeds
-                tmp_jaccard_sim = compute_jaccard_similarity(masks_dict, lang, lang, task, task, seed_i, seed_j)
+                mask_1 = masks_dict[lang][task][seed_i].flatten().tolist()
+                mask_2 = masks_dict[lang][task][seed_j].flatten().tolist()
+                tmp_jaccard_sim = compute_jaccard_similarity(mask_1, mask_2)
 
                 jaccard_seed_dict[task][lang][(seed_i,seed_j)] = tmp_jaccard_sim
                 tmp_list_jaccard_seeds.append(tmp_jaccard_sim)
