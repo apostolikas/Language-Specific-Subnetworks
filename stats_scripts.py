@@ -2,7 +2,7 @@ import torch
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
+import itertools
 
 
 LANGUAGES = ['en','de','fr','es','zh']
@@ -100,38 +100,76 @@ def visualize_dictionaries(input_dict:dict, mode:str):
   
 
 
-def determine_overlap(ratio_dict,task1,lang1,task2,lang2):
+def determine_overlap(ratio_dict,task,mode):
     '''
     Returns:
         overlap_percentage: percentage of common values for the two ratio matrices
         Also plots the overlap.
     '''
-    tensor1 = ratio_dict[task1][lang1]
-    tensor2 = ratio_dict[task2][lang2]
-    eq = torch.eq(tensor1 , tensor2)
-    overlap_count = torch.sum(eq).item()
-    total_elements = tensor1.numel()
-    overlap_percentage = (overlap_count / total_elements) * 100
-    print(f'The overlap percentage for {task1,lang1} and  {task2,lang2} is {overlap_percentage:.2f}%' )  
+    if mode == 'lang':
+        fig, ax = plt.subplots(2, 5, figsize=(10, 8))
+        fig.suptitle(f'Overlap for Task: {task} (Language-wise)')
 
-    _, ax = plt.subplots()
-    ax.imshow(eq, cmap='Blues')  # heatmap for masks
-    ax.set_ylabel('Layer')
-    ax.set_xlabel('Head')
-    ax.set_title(f'Overlap for {task1,lang1} and  {task2,lang2}')  
-    ax.set_xticks(np.arange(0, 12))
-    ax.set_yticks(np.arange(0, 12))
-    ax.set_xticklabels(np.arange(1, 13))
-    ax.set_yticklabels(np.arange(1, 13))
-    plt.show()
+        for i, (lang1, lang2) in enumerate(itertools.combinations(LANGUAGES, r=2)):
+            tensor1 = ratio_dict[task][lang1]
+            tensor2 = ratio_dict[task][lang2]
+            eq = torch.eq(tensor1, tensor2)
+            overlap_count = torch.sum(eq).item()
+            total_elements = tensor1.numel()
+            overlap_percentage = (overlap_count / total_elements) * 100
+            print(f'The overlap percentage for {task, lang1} and {task, lang2} is {overlap_percentage:.2f}%')
+
+            row = i // 5
+            col = i % 5
+            ax[row, col].imshow(eq, cmap='Blues')
+            ax[row, col].set_ylabel('Layer')
+            ax[row, col].set_xlabel('Head')
+            ax[row, col].set_title(f'{task, lang1} - {task, lang2}')
+            ax[row, col].set_xticks(np.arange(0, 12))
+            ax[row, col].set_yticks(np.arange(0, 12))
+            ax[row, col].set_xticklabels(np.arange(1, 13))
+            ax[row, col].set_yticklabels(np.arange(1, 13))
+
+        plt.tight_layout()
+        plt.show()
+
+    elif mode == 'task':
+        fig, ax = plt.subplots(len(TASKS), len(LANGUAGES), figsize=(12, 8))
+        fig.suptitle('Overlap by Task')
+
+        for i, (task1, task2) in enumerate(itertools.combinations(TASKS, r=2)):
+            for j, lang in enumerate(LANGUAGES):
+                tensor1 = ratio_dict[task1][lang]
+                tensor2 = ratio_dict[task2][lang]
+                eq = torch.eq(tensor1, tensor2)
+                overlap_count = torch.sum(eq).item()
+                total_elements = tensor1.numel()
+                overlap_percentage = (overlap_count / total_elements) * 100
+                print(f'The overlap percentage for {task1} ({lang}) and {task2} ({lang}) is {overlap_percentage:.2f}%')
+                ax[i, j].imshow(eq, cmap='Blues')
+                ax[i, j].set_ylabel('Layer')
+                ax[i, j].set_xlabel('Head')
+                ax[i, j].set_title(f'{task1, lang} - {task2, lang}')
+                ax[i, j].set_xticks(np.arange(0, 12))
+                ax[i, j].set_yticks(np.arange(0, 12))
+                ax[i, j].set_xticklabels(np.arange(1, 13))
+                ax[i, j].set_yticklabels(np.arange(1, 13))
+
+        plt.tight_layout()
+        plt.show()
+
     return overlap_percentage
+
 
 
 if __name__ == '__main__':
     masks_dict = load_masks()
     ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)        
     visualize_dictionaries(layer_importance_dict,'importance')
-    overlap = determine_overlap(ratio_dict,'xnli','en','xnli','de')
+    overlap_marc = determine_overlap(ratio_dict,'marc','lang')
+    overlap_xnli = determine_overlap(ratio_dict,'xnli','lang')
+    overlap_paws = determine_overlap(ratio_dict,'paws-x','lang')
+    overlap_taskwise = determine_overlap(ratio_dict,None,'task')
 
 
 
