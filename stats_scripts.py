@@ -97,12 +97,41 @@ def visualize_dictionaries(input_dict:dict, mode:str):
         col = 0
     plt.tight_layout() 
     plt.show()
-    
+  
+
+
+def determine_overlap(ratio_dict,task1,lang1,task2,lang2):
+    '''
+    Returns:
+        overlap_percentage: percentage of common values for the two ratio matrices
+        Also plots the overlap.
+    '''
+    tensor1 = ratio_dict[task1][lang1]
+    tensor2 = ratio_dict[task2][lang2]
+    eq = torch.eq(tensor1 , tensor2)
+    overlap_count = torch.sum(eq).item()
+    total_elements = tensor1.numel()
+    overlap_percentage = (overlap_count / total_elements) * 100
+    print(f'The overlap percentage for {task1,lang1} and  {task2,lang2} is {overlap_percentage:.2f}%' )  
+
+    _, ax = plt.subplots()
+    ax.imshow(eq, cmap='Blues')  # heatmap for masks
+    ax.set_ylabel('Layer')
+    ax.set_xlabel('Head')
+    ax.set_title(f'Overlap for {task1,lang1} and  {task2,lang2}')  
+    ax.set_xticks(np.arange(0, 12))
+    ax.set_yticks(np.arange(0, 12))
+    ax.set_xticklabels(np.arange(1, 13))
+    ax.set_yticklabels(np.arange(1, 13))
+    plt.show()
+    return overlap_percentage
+
 
 if __name__ == '__main__':
     masks_dict = load_masks()
     ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)        
     visualize_dictionaries(layer_importance_dict,'importance')
+    overlap = determine_overlap(ratio_dict,'xnli','en','xnli','de')
 
 
 
