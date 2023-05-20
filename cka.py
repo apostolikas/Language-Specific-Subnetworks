@@ -84,7 +84,7 @@ def cka_compare(args):
 
     # Save
     ckp1 = Path(args.checkpoint1).parent.stem
-    ckp2 = Path(args.checkpoint1).parent.stem
+    ckp2 = Path(args.checkpoint2).parent.stem
     mask1 = os.path.split(args.mask1)[-1].split('.')[0]
     mask2 = os.path.split(args.mask2)[-1].split('.')[0]
     filename = f"{ckp1}_{mask1}_{ckp2}_{mask2}.pkl"
