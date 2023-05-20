@@ -5,12 +5,14 @@ import cv2
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.metrics import pairwise_distances
+from sklearn.manifold import TSNE
 from collections import defaultdict
 from mask import set_seed
 import argparse
-from make_plots import plot_square_matrix, create_big_plot
+from make_plots import plot_square_matrix, create_big_plot, plot_tSNE
 from call_plots import show_timesteps_head_scores
 import matplotlib.pyplot as plt
+
 
 # settings
 LANGUAGES = ['en','de','fr','es','zh']
@@ -61,7 +63,7 @@ def hierarchical_clustering(dist_matrix, num_clusters):
 def kmeans_clustering(dist_matrix, num_clusters):
     seed = 0
     set_seed(seed) # maybe not needed
-    kmeans = KMeans(n_clusters=num_clusters, random_state=seed)
+    kmeans = KMeans(n_clusters=num_clusters, random_state=seed, n_init=30) #default 10 random init, the more the better
     cluster_labels = kmeans.fit_predict(dist_matrix)
     return cluster_labels
 
@@ -91,10 +93,22 @@ def cluster_statistics(last_step_head_scores_info, cluster_labels, num_clusters)
         print(f"Tasks: {', '.join(tmp_tasks)}")
         print(f"Seeds: {tmp_seeds}")
 
+def apply_tSNE(input):
+    # Create a t-SNE object
+    tsne = TSNE(n_components=2, random_state=42, perplexity=5, n_iter=1500)
+    output = tsne.fit_transform(input)
+    print('KL divergence ', tsne.kl_divergence_)
+    return output
+
 def main(args):
     last_step_head_scores, last_step_head_scores_info, all_steps_head_scores = load_head_importance_scores()
+    array_last_step_head_scores = np.array(last_step_head_scores)
+    #t-SNE
+    tsne_output = apply_tSNE(array_last_step_head_scores)
+    plot_tSNE(tsne_output, last_step_head_scores_info)
+    
     # Compute the distance matrix
-    dist_matrix = pairwise_distances(last_step_head_scores)
+    dist_matrix = pairwise_distances(last_step_head_scores, metric=args.distance_metric)
 
     if args.algorithm == 'kmeans':
         cluster_labels = kmeans_clustering(dist_matrix, args.num_clusters)
@@ -110,9 +124,10 @@ def main(args):
    
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Head importance analysis')
-    parser.add_argument('--num_clusters', type=int, default=15)
+    parser.add_argument('--num_clusters', type=int, default=2)
     parser.add_argument('--algorithm', default='kmeans', choices=['kmeans', 'hierarchical'], 
                         help='clustering algorithm that will be used either kmeans or hierarchical')
     parser.add_argument('--plot_timesteps',type=bool, default=False) # a lot of big plots 
+    parser.add_argument('--distance_metric', type=str,choices=['euclidean', 'cosine'], default='cosine' )
     args = parser.parse_args()
     main(args)

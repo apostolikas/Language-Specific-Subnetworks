@@ -2,6 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2 #maybe this will be removed for the final version
 
+# settings
+LANGUAGES = ['en','de','fr','es','zh']
+TASKS = ['marc','paws-x','xnli']
+NUM_SEEDS = 5
+SEEDS = [i for i in range(NUM_SEEDS)]
+
 def plot_lower_triangular_matrix(matrix, x_labels, y_labels, save_path, x_title, y_title, colour_map=plt.cm.OrRd):
     initial_matrix = matrix
 
@@ -79,3 +85,50 @@ def create_big_plot(images,plt_name):
     '''
     im_tile = cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in images])
     cv2.imwrite(plt_name, im_tile)
+
+def plot_tSNE(tsne_output, head_scores_info):
+    LANGUAGES = ['en','de','fr','es','zh']
+    TASKS = ['marc','paws-x','xnli']
+    colours = ['red','green','blue'] # mark tasks with colours
+    markers = ['^','o','*','X','s'] # mark languages with plus, circle, *, X, square
+
+    dict_task_colors = {task: colours[i] for i, task in enumerate(TASKS)}
+    dict_language_markers = {lang: markers[i] for i, lang in enumerate(LANGUAGES)}
+
+    for point, (task, language,_) in zip(tsne_output, head_scores_info):
+        plt.scatter(point[0], point[1], color=dict_task_colors[task], marker=dict_language_markers[language])
+
+    # # Add legend for colors
+    # color_legends = [plt.Line2D([], [], linestyle='None',marker='o', color=dict_task_colors[task], markersize=8)
+    #                 for task in TASKS]
+    # plt.legend(color_legends, TASKS, loc='lower left')
+    # Add legend for colors
+    # color_legends = [plt.Line2D([], [], linestyle='None', marker='o', color=dict_task_colors[task], markersize=8)
+    #                 for task in TASKS]
+
+    # marker_legends = [plt.Line2D([], [], linestyle='None', marker=dict_language_markers[lang], color='black', markersize=8)
+    #               for lang in LANGUAGES]
+
+    # # Plot the legends
+    # plt.legend(color_legends, TASKS, loc='lower left', bbox_to_anchor=(0, 1))
+    # plt.legend(marker_legends, LANGUAGES, loc='upper right', bbox_to_anchor=(1, 1))
+
+    # # Add the legends to the plot without overlapping
+    # plt.gca().add_artist(plt.legend(color_legends, TASKS, loc='lower left', bbox_to_anchor=(0, 1)))
+    # plt.gca().add_artist(plt.legend(marker_legends, LANGUAGES, loc='upper right', bbox_to_anchor=(1, 1)))
+    legends = []
+    legend_str = []
+    for task in TASKS:
+        for lang in LANGUAGES:
+            legends.append(plt.Line2D([], [], linestyle='None', marker=dict_language_markers[lang],
+                                    color=dict_task_colors[task], markersize=8))
+            legend_str.append(f'{task}_{lang}')
+
+    # plt.legend(legends, legend_labels, loc='best', ncol=3)
+    plt.legend(legends, legend_str, loc='center', bbox_to_anchor=(1.2, 0.5))
+
+    plt.xlabel("Dimension 1")
+    plt.ylabel("Dimension 2")
+    plt.title("t-SNE Visualization")
+    plt.tight_layout()
+    plt.show()
