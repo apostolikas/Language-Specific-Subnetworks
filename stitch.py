@@ -38,8 +38,7 @@ def stitch(args):
     # Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = StitchNet(args.checkpoint1, args.checkpoint2, args.layer).to(device)
-    if not args.no_psinv_init:
-        model.find_optimal_init(data_loader)
+    model.find_optimal_init(data_loader)
     model.load_masks(args.mask1, args.mask2)
 
     # Shuffle mask of first net
@@ -97,8 +96,15 @@ def stitch(args):
         "stitch_acc": get_model_accuracy(model, dataset, 32)
     }
     model.remove_hooks()
+
+    # Front model's output might have mismatch
+    try:
+        front_acc = get_model_accuracy(model.front_model, dataset, 32, model.front_mask)
+    except:
+        front_acc = -1
+
     results.update({
-        f"front_acc": get_model_accuracy(model.front_model, dataset, 32, model.front_mask),
+        f"front_acc": front_acc,
         f"end_acc": get_model_accuracy(model.end_model, dataset, 32, model.end_mask),
     })
     print(results)
@@ -128,7 +134,6 @@ if __name__ == "__main__":
     parser.add_argument('--mask-dir', type=str, default='results/pruned_masks')
     parser.add_argument('--save-path', type=str, default='results/stitch/dev.csv')
     parser.add_argument('--randomize', action='store_true')
-    parser.add_argument('--no-psinv-init', action='store_true')
 
     args = parser.parse_args()
     stitch(args)

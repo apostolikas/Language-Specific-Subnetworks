@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from copy import deepcopy
 from transformers import AutoModelForSequenceClassification
 
 
@@ -90,25 +91,29 @@ class StitchNet(nn.Module):
     def _register_fw_hook(self, model):
 
         def _save_activations_hook(module, m_in, m_out):
-            m_out = m_out[0]
-            m_out = m_out.view(m_out.shape[0], -1, self.n_heads, self.n_dim).permute(0, 1, 3, 2)
-            model.activation = m_out.detach()
+            m_in = m_in[0]
+            m_in = m_in.view(m_in.shape[0], -1, self.n_heads, self.n_dim).permute(0, 1, 3, 2)
+            model.activation = m_in.detach()
 
-        layer = model.roberta.encoder.layer[self.layer_idx].attention
+        layer = model.roberta.encoder.layer[self.layer_idx].intermediate
         hook = layer.register_forward_hook(_save_activations_hook)
         return hook
 
     def _register_load_hook(self, model):
 
+        layer = model.roberta.encoder.layer[self.layer_idx].intermediate
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        layer_copy = deepcopy(layer).to(device)
+
         def _override_activations_hook(module, m_in, m_out):
-            activation = model.activation.clone()
+            activation = model.activation
             activation = activation.permute(0, 1, 3, 2).reshape(activation.shape[0],
                                                                 -1,
                                                                 self.hidden_size)
+            activation = layer_copy(activation)
             model.activation = None
-            return (activation,)
+            return activation
 
-        layer = model.roberta.encoder.layer[self.layer_idx].attention
         hook = layer.register_forward_hook(_override_activations_hook)
         return hook
 

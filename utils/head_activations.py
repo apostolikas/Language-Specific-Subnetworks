@@ -7,12 +7,12 @@ def register_activation_saver(model, layer_i):
     # n_heads = model.config.num_attention_heads
 
     def save_activations(module, m_in, m_out):
-        m_out = m_out[0][:, :1]
-        batch_size = m_out.shape[0]
-        m_out = m_out.view(batch_size, -1)
-        model.cache[layer_i].append(m_out.detach().cpu())
+        m_in = m_in[0][:, :1]
+        batch_size = m_in.shape[0]
+        m_in = m_in.view(batch_size, -1)
+        model.cache[layer_i].append(m_in.detach().cpu())
 
-    layer = model.roberta.encoder.layer[layer_i].attention
+    layer = model.roberta.encoder.layer[layer_i].intermediate
     layer.register_forward_hook(save_activations)
 
 
