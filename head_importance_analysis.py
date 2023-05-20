@@ -95,7 +95,7 @@ def cluster_statistics(last_step_head_scores_info, cluster_labels, num_clusters)
 
 def apply_tSNE(input):
     # Create a t-SNE object
-    tsne = TSNE(n_components=2, random_state=42, perplexity=5, n_iter=1500)
+    tsne = TSNE(n_components=2, random_state=42, perplexity=10, n_iter=1500)
     output = tsne.fit_transform(input)
     print('KL divergence ', tsne.kl_divergence_)
     return output

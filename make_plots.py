@@ -105,10 +105,10 @@ def plot_tSNE(tsne_output, head_scores_info):
         language_legend_handles.append(plt.Line2D([], [], color='lightgray', marker=dict_language_markers[lang], linestyle='None', markersize=10))
 
 
-    plt.legend(task_legend_handles, TASKS, loc='best', title='Tasks')
-    plt.gca().add_artist(plt.legend(task_legend_handles, TASKS, loc='best', title='Tasks'))
+    # plt.legend(task_legend_handles, TASKS, loc='upper left', title='Tasks')
+    plt.gca().add_artist(plt.legend(task_legend_handles, TASKS, loc='best', title='Tasks',bbox_to_anchor=(1.02, 1)))
 
-    plt.legend(language_legend_handles, LANGUAGES, loc='upper left', title='Languages')
+    plt.legend(language_legend_handles, LANGUAGES, loc='lower left', title='Languages',bbox_to_anchor=(1.02, 0.35))
 
     plt.xlabel("Dimension 1")
     plt.ylabel("Dimension 2")
