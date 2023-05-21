@@ -5,10 +5,10 @@ import numpy as np
 from transformers import (AutoTokenizer,
                           AutoModelForSequenceClassification,
                           TrainingArguments,
-                          DataCollatorWithPadding,
+                          DataCollatorWithPadding, DataCollatorForTokenClassification,
                           Trainer,
-                          EarlyStoppingCallback)
-import evaluate
+                          EarlyStoppingCallback, AutoModelForTokenClassification)
+import evaluate #we need !pip install seqeval
 
 from data import get_dataset, ALLOWED_DATASETS
 
@@ -24,7 +24,22 @@ def compute_metrics():
 
     return accuracy
 
+def compute_ner_metrics(eval_preds):
+    metric = evaluate.load("seqeval")
+    label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
+    logits, labels = eval_preds
+    predictions = np.argmax(logits, axis=-1)
 
+    # Remove ignored index (special tokens) and convert to labels
+    true_labels = [[label_names[l] for l in label if l != -100] for label in labels]
+    true_predictions = [
+        [label_names[p] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+    all_metrics = metric.compute(predictions=true_predictions, references=true_labels)
+    # precision, recall, accuracy =  all_metrics["overall_precision"], all_metrics["overall_recall"], all_metrics["overall_accuracy"]
+    f1 = all_metrics["overall_f1"] 
+    return {"f1":f1}
 def main(args):
 
     # Get datasets
@@ -35,7 +50,14 @@ def main(args):
 
     # Get model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = AutoModelForSequenceClassification.from_pretrained(args.resume,
+
+    if args.dataset == 'wikiann':
+        label_names = train.dataset.features["ner_tags"].feature.names
+        id2label = {i: label for i, label in enumerate(label_names)}
+        label2id = {v: k for k, v in id2label.items()}
+        model = AutoModelForTokenClassification.from_pretrained(args.resume, id2label=id2label, label2id=label2id)
+    else:
+        model = AutoModelForSequenceClassification.from_pretrained(args.resume,
                                                                num_labels=train.n_classes)
     model = model.to(device)
 
@@ -56,14 +78,24 @@ def main(args):
                                       dataloader_num_workers=2,
                                       save_total_limit=1,
                                       fp16=True)
-    trainer = Trainer(model,
+    if args.dataset == 'wikiann':
+        trainer = Trainer(model,
                       training_args,
                       train_dataset=train,
                       eval_dataset=val,
-                      data_collator=DataCollatorWithPadding(tokenizer),
+                      data_collator=DataCollatorForTokenClassification(tokenizer=tokenizer),
                       tokenizer=tokenizer,
-                      compute_metrics=compute_metrics(),
+                      compute_metrics=compute_ner_metrics,
                       callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
+    else:
+        trainer = Trainer(model,
+                        training_args,
+                        train_dataset=train,
+                        eval_dataset=val,
+                        data_collator=DataCollatorWithPadding(tokenizer),
+                        tokenizer=tokenizer,
+                        compute_metrics=compute_metrics(),
+                        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
 
     # Train
     print('Device ', device)
