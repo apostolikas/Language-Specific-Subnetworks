@@ -95,6 +95,7 @@ def visualize_dictionaries(input_dict:dict, mode:str):
         row += 1
         col = 0
     plt.tight_layout() 
+    plt.savefig(mode+'_fig')
     plt.show()
   
 
@@ -133,8 +134,6 @@ def determine_overlap(ratio_dict,task,mode):
         plt.show()
 
     elif mode == 'task':
-        fig, ax = plt.subplots(4, 5, figsize=(12, 8))
-        fig.suptitle('Overlap by Task')
 
         for i, (task1, task2) in enumerate(itertools.combinations(TASKS, r=2)):
             for j, lang in enumerate(LANGUAGES):
@@ -145,17 +144,6 @@ def determine_overlap(ratio_dict,task,mode):
                 total_elements = tensor1.numel()
                 overlap_percentage = (overlap_count / total_elements) * 100
                 print(f'The overlap percentage for {task1} ({lang}) and {task2} ({lang}) is {overlap_percentage:.2f}%')
-        #         ax[i, j].imshow(eq, cmap='Blues')
-        #         ax[i, j].set_ylabel('Layer')
-        #         ax[i, j].set_xlabel('Head')
-        #         ax[i, j].set_title(f'{task1, lang} - {task2, lang}')
-        #         ax[i, j].set_xticks(np.arange(0, 12))
-        #         ax[i, j].set_yticks(np.arange(0, 12))
-        #         ax[i, j].set_xticklabels(np.arange(1, 13))
-        #         ax[i, j].set_yticklabels(np.arange(1, 13))
-
-        # plt.tight_layout()
-        # plt.show()
 
     return overlap_percentage
 
@@ -166,11 +154,11 @@ if __name__ == '__main__':
     ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)        
     visualize_dictionaries(ratio_dict,'mask')
     visualize_dictionaries(layer_importance_dict,'importance')
-    overlap_marc = determine_overlap(ratio_dict,'marc','lang')
-    overlap_xnli = determine_overlap(ratio_dict,'xnli','lang')
-    overlap_paws = determine_overlap(ratio_dict,'paws-x','lang')
-    overlap_nes = determine_overlap(ratio_dict,'ner','lang')
-    overlap_taskwise = determine_overlap(ratio_dict,None,'task')
+    # overlap_marc = determine_overlap(ratio_dict,'marc','lang')
+    # overlap_xnli = determine_overlap(ratio_dict,'xnli','lang')
+    # overlap_paws = determine_overlap(ratio_dict,'paws-x','lang')
+    # overlap_nes = determine_overlap(ratio_dict,'ner','lang')
+    # overlap_taskwise = determine_overlap(ratio_dict,None,'task')
 
 
 
