@@ -24,22 +24,25 @@ def compute_metrics():
 
     return accuracy
 
-def compute_ner_metrics(eval_preds):
-    metric = evaluate.load("seqeval")
-    label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
+def get_ner_metrics(eval_preds):
     logits, labels = eval_preds
     predictions = np.argmax(logits, axis=-1)
+    d= compute_ner_metrics(labels, predictions)
+    return d
 
+def compute_ner_metrics(labels, predictions):
     # Remove ignored index (special tokens) and convert to labels
+    metric = evaluate.load("seqeval")
+    label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
     true_labels = [[label_names[l] for l in label if l != -100] for label in labels]
     true_predictions = [
         [label_names[p] for (p, l) in zip(prediction, label) if l != -100]
         for prediction, label in zip(predictions, labels)
     ]
     all_metrics = metric.compute(predictions=true_predictions, references=true_labels)
-    # precision, recall, accuracy =  all_metrics["overall_precision"], all_metrics["overall_recall"], all_metrics["overall_accuracy"]
-    f1 = all_metrics["overall_f1"] 
+    f1 = all_metrics["overall_f1"] # micro-f1
     return {"f1":f1}
+
 def main(args):
 
     # Get datasets
@@ -85,7 +88,7 @@ def main(args):
                       eval_dataset=val,
                       data_collator=DataCollatorForTokenClassification(tokenizer=tokenizer),
                       tokenizer=tokenizer,
-                      compute_metrics=compute_ner_metrics,
+                      compute_metrics=get_ner_metrics,
                       callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
     else:
         trainer = Trainer(model,
