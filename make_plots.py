@@ -1,10 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2 #maybe this will be removed for the final version
-
+from data import ALLOWED_DATASETS
 # settings
 LANGUAGES = ['en','de','fr','es','zh']
-TASKS = ['marc','paws-x','xnli']
 NUM_SEEDS = 5
 SEEDS = [i for i in range(NUM_SEEDS)]
 
@@ -87,17 +86,17 @@ def create_big_plot(images,plt_name):
     cv2.imwrite(plt_name, im_tile)
 
 def plot_tSNE(tsne_output, head_scores_info):
-    colours = ['red','green','blue'] # mark tasks with colours
+    colours = ['red','green','blue','black'] # mark tasks with colours
     markers = ['^','o','*','X','s'] # mark languages with plus, circle, *, X, square
 
-    dict_task_colors = {task: colours[i] for i, task in enumerate(TASKS)}
+    dict_task_colors = {task: colours[i] for i, task in enumerate(ALLOWED_DATASETS)}
     dict_language_markers = {lang: markers[i] for i, lang in enumerate(LANGUAGES)}
 
     for point, (task, language,_) in zip(tsne_output, head_scores_info):
         plt.scatter(point[0], point[1], color=dict_task_colors[task], marker=dict_language_markers[language])
 
     task_legend_handles = []
-    for task in TASKS:
+    for task in ALLOWED_DATASETS:
         task_legend_handles.append(plt.Line2D([], [], color=dict_task_colors[task], marker="_", linestyle='None', markersize=10))
 
     language_legend_handles = []
@@ -106,7 +105,7 @@ def plot_tSNE(tsne_output, head_scores_info):
 
 
     # plt.legend(task_legend_handles, TASKS, loc='upper left', title='Tasks')
-    plt.gca().add_artist(plt.legend(task_legend_handles, TASKS, loc='best', title='Tasks',bbox_to_anchor=(1.02, 1)))
+    plt.gca().add_artist(plt.legend(task_legend_handles, ALLOWED_DATASETS, loc='best', title='Tasks',bbox_to_anchor=(1.02, 1)))
 
     plt.legend(language_legend_handles, LANGUAGES, loc='lower left', title='Languages',bbox_to_anchor=(1.02, 0.35))
 

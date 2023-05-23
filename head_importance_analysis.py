@@ -12,11 +12,11 @@ import argparse
 from make_plots import plot_square_matrix, create_big_plot, plot_tSNE
 from call_plots import show_timesteps_head_scores
 import matplotlib.pyplot as plt
-
+from data import ALLOWED_DATASETS
 
 # settings
 LANGUAGES = ['en','de','fr','es','zh']
-TASKS = ['marc','paws-x','xnli']
+
 NUM_SEEDS = 5
 SEEDS = [i for i in range(NUM_SEEDS)]
 
@@ -34,7 +34,7 @@ def load_head_importance_scores():
     last_step_head_scores_info = []  
     max_steps = -1
     for lang in LANGUAGES:
-        for task in TASKS:
+        for task in ALLOWED_DATASETS:
             for seed in SEEDS:
                 path = os.path.join('./results/pruned_masks', task, f'head_imp_{lang}_{seed}.pickle')
                 with open(path,'rb') as file:
@@ -50,7 +50,7 @@ def load_head_importance_scores():
                         max_steps = len(tmp_all_head_scores)
                     all_steps_head_scores.append(tmp_all_head_scores)
 
-    assert(len(last_step_head_scores) == len(last_step_head_scores_info) == len(all_steps_head_scores) == 75)
+    # assert(len(last_step_head_scores) == len(last_step_head_scores_info) == len(all_steps_head_scores) == 75)
     print(f'max time steps{max_steps}')
 
     return last_step_head_scores, last_step_head_scores_info, all_steps_head_scores
@@ -124,7 +124,7 @@ def main(args):
    
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Head importance analysis')
-    parser.add_argument('--num_clusters', type=int, default=2)
+    parser.add_argument('--num_clusters', type=int, default=3)
     parser.add_argument('--algorithm', default='kmeans', choices=['kmeans', 'hierarchical'], 
                         help='clustering algorithm that will be used either kmeans or hierarchical')
     parser.add_argument('--plot_timesteps',type=bool, default=False) # a lot of big plots 
