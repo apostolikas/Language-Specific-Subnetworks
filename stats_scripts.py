@@ -115,6 +115,7 @@ def determine_overlap(ratio_dict, task, mode):
         for i, (lang1, lang2) in enumerate(itertools.combinations(LANGUAGES, r=2)):
             tensor1 = ratio_dict[task][lang1].bool()
             tensor2 = ratio_dict[task][lang2].bool()
+            eq = torch.eq(ratio_dict[task][lang1], ratio_dict[task][lang2])
             overlap_percentage = (tensor1 & tensor2).sum() / (tensor1 | tensor2).sum() * 100.
             print(
                 f'The overlap percentage for {task, lang1} and {task, lang2} is {overlap_percentage:.2f}%'
@@ -138,8 +139,9 @@ def determine_overlap(ratio_dict, task, mode):
 
         for i, (task1, task2) in enumerate(itertools.combinations(TASKS, r=2)):
             for j, lang in enumerate(LANGUAGES):
-                tensor1 = ratio_dict[task][lang1].bool()
-                tensor2 = ratio_dict[task][lang2].bool()
+                tensor1 = ratio_dict[task1][lang].bool()
+                tensor2 = ratio_dict[task2][lang].bool()
+                eq = torch.eq(ratio_dict[task1][lang], ratio_dict[task2][lang])
                 overlap_percentage = (tensor1 & tensor2).sum() / (tensor1 | tensor2).sum() * 100.
                 print(
                     f'The overlap percentage for {task1} ({lang}) and {task2} ({lang}) is {overlap_percentage:.2f}%'
