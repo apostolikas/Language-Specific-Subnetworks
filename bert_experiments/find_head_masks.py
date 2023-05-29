@@ -25,6 +25,7 @@ from datetime import datetime
 import numpy as np
 import torch
 from tqdm import tqdm
+from finetune import compute_ner_metrics
 
 
 def entropy(p):
@@ -39,7 +40,7 @@ def compute_heads_importance(args,
                              eval_dataloader,
                              compute_entropy=True,
                              compute_importance=True,
-                             head_mask=None):
+                             head_mask=None,task_name=None):
     """ This method shows how to compute:
         - head attention entropy
         - head importance scores according to http://arxiv.org/abs/1905.10650
@@ -62,6 +63,7 @@ def compute_heads_importance(args,
     tot_tokens = 0.0
     # Note: optimizer won't optimize anthing, lr doesn't matter
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+  
     for step, batch in enumerate(tqdm(eval_dataloader, desc="Iteration")):
 
         input_ids = batch['input_ids'].to(device)
@@ -94,15 +96,29 @@ def compute_heads_importance(args,
             head_importance += head_mask.grad.abs().detach()
 
         # Also store our logits/labels if we want to compute metrics afterwards
-        if preds is None:
-            preds = logits.detach().cpu().numpy()
-            labels = label_ids.detach().cpu().numpy()
+        if task_name=='wikiann':
+            logits = logits.detach().cpu() # batch_size, max_seq_length, labels
+            tmp_preds = torch.argmax(logits,axis=-1) # batch_size, max_seq_length
+            tmp_preds = tmp_preds.detach().cpu().tolist()
+            del logits
+            label_ids = label_ids.detach().cpu() # batch_size, max_seq_length
+            label_ids = label_ids.tolist()
+            if preds is None:
+                preds = tmp_preds
+                labels = label_ids
+            else:
+                preds.extend(tmp_preds)
+                labels.extend(label_ids)
         else:
-            preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-            labels = np.append(labels, label_ids.detach().cpu().numpy(), axis=0)
+            if preds is None:
+                preds = logits.detach().cpu().numpy()
+                labels = label_ids.detach().cpu().numpy()
+            else:
+                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                labels = np.append(labels, label_ids.detach().cpu().numpy(), axis=0)
 
         tot_tokens += input_mask.float().detach().sum().data
-
+  
     if compute_entropy:
         # Normalize
         attn_entropy /= tot_tokens
@@ -127,14 +143,26 @@ def compute_heads_importance(args,
 
     return attn_entropy, head_importance, preds, labels
 
+def metric_score(task_name, preds, labels):
+    if task_name=='wikiann':
+        dict_original_score = compute_ner_metrics(labels, preds)
+        original_score = dict_original_score['f1']
+    else:    
+        preds = np.argmax(preds, axis=1)
+        original_score = (preds == labels).mean()
+    return original_score
 
 def mask_heads(args, model, eval_dataloader, task_name):
     """ This method shows how to mask head (set some heads to zero), to test the effect on the network,
         based on the head importance scores, as described in Michel et al. (http://arxiv.org/abs/1905.10650)
+
+    #! Now I return extra the following the following argument apart from head_mask
+        all_head_importance: list of 2d tensors with the head_importance scores at each time step
+
     """
-    _, head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False)
-    preds = np.argmax(preds, axis=1)
-    original_score = (preds == labels).mean()
+    _,head_importance, preds, labels = compute_heads_importance(args, model, eval_dataloader, compute_entropy=False, task_name=task_name)
+    all_head_importance = []
+    original_score = metric_score(task_name, preds, labels)
 
     new_head_mask = torch.ones_like(head_importance)
     num_to_mask = max(1, int(new_head_mask.numel() * args.masking_amount))
@@ -147,6 +175,9 @@ def mask_heads(args, model, eval_dataloader, task_name):
         i += 1
         # heads from least important to most - keep only not-masked heads
         head_importance[head_mask == 0.0] = float("Inf")
+        all_head_importance.append(head_importance)
+            
+
         current_heads_to_mask = head_importance.view(-1).sort()[1]
 
         if len(current_heads_to_mask) <= num_to_mask:
@@ -167,17 +198,17 @@ def mask_heads(args, model, eval_dataloader, task_name):
             break
 
         # Compute metric and head importance again
-        _, head_importance, preds, labels = compute_heads_importance(
-            args, model, eval_dataloader, compute_entropy=False, head_mask=new_head_mask
-        )
-        preds = np.argmax(preds, axis=1)
-        current_score = (preds == labels).mean()
+        _,head_importance, preds, labels = compute_heads_importance(
+            args, model, eval_dataloader, compute_entropy=False, head_mask=new_head_mask, task_name=task_name
+        )    
+        
+        current_score = metric_score(task_name, preds, labels)
 
         print(f"Head Masking: current score: {current_score}", end=" ")
         print(f"remaining heads {new_head_mask.sum()}", end=" ")
         print(f"({new_head_mask.sum() / new_head_mask.numel() * 100:.1f} percents)")
 
-    return head_mask
+    return head_mask, all_head_importance
 
 
 def prune_heads(args, model, eval_dataloader, head_mask, task_name):
@@ -188,7 +219,7 @@ def prune_heads(args, model, eval_dataloader, head_mask, task_name):
     # Pruning is like masking but we actually remove the masked weights
     before_time = datetime.now()
     _, _, preds, labels = compute_heads_importance(
-        args, model, eval_dataloader, compute_entropy=False, compute_importance=False, head_mask=head_mask
+        args, model, eval_dataloader, compute_entropy=False, compute_importance=False, head_mask=head_mask, task_name=task_name
     )
     preds = np.argmax(preds, axis=1)
     score_masking = (preds == labels).mean()
@@ -206,7 +237,7 @@ def prune_heads(args, model, eval_dataloader, head_mask, task_name):
 
     before_time = datetime.now()
     _, _, preds, labels = compute_heads_importance(
-        args, model, eval_dataloader, compute_entropy=False, compute_importance=False, head_mask=None
+        args, model, eval_dataloader, compute_entropy=False, compute_importance=False, head_mask=None,task_name=task_name
     )
     preds = np.argmax(preds, axis=1)
     score_pruning = (preds == labels).mean()
