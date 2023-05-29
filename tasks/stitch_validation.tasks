@@ -1,0 +1,12 @@
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 0 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 1 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 2 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 3 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 4 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 5 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 6 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 7 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 8 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 9 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 10 paws-x fr --save-path results/stitch/stitch_validation.csv
+python stitch.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl 11 paws-x fr --save-path results/stitch/stitch_validation.csv

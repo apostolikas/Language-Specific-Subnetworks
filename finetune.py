@@ -122,7 +122,7 @@ if __name__ == "__main__":
     parser.add_argument('dataset', type=str, choices=ALLOWED_DATASETS)
     parser.add_argument('--resume', type=str, default="xlm-roberta-base", help="path to checkpoint")
     parser.add_argument('--batch-size', type=int, default=32)
-    parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument('--epochs', type=int, default=2)
     parser.add_argument('--lr', type=float, default=2e-5)
     parser.add_argument('--weight-decay', type=float, default=1e-2)
     parser.add_argument('--seed', type=int, default=0)

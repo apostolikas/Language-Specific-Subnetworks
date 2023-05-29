@@ -13,8 +13,9 @@ class XNLIDataset(ClassificationDataset):
                  tokenizer: AutoTokenizer,
                  lang: str = None,
                  split: str = 'train',
-                 sample_n: int = 0):
-        super().__init__("xnli", tokenizer, lang, split, sample_n)
+                 sample_n: int = 0,
+                 **kwargs):
+        super().__init__("xnli", tokenizer, lang, split, sample_n, **kwargs)
 
     def _get_input(self, row: dict):
         return row['premise'], row['hypothesis']

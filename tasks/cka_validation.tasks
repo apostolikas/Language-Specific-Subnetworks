@@ -1,0 +1,15 @@
+python cka.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/en_0.pkl results/pruned_masks/marc/en_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/de_0.pkl results/pruned_masks/marc/de_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/fr_0.pkl results/pruned_masks/marc/fr_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/es_0.pkl results/pruned_masks/marc/es_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/zh_0.pkl results/pruned_masks/marc/zh_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/en_0.pkl results/pruned_masks/paws-x/en_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/de_0.pkl results/pruned_masks/paws-x/de_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/fr_0.pkl results/pruned_masks/paws-x/fr_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/es_0.pkl results/pruned_masks/paws-x/es_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/paws-x/best results/models/paws-x/best results/pruned_masks/paws-x/zh_0.pkl results/pruned_masks/paws-x/zh_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/en_0.pkl results/pruned_masks/xnli/en_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/de_0.pkl results/pruned_masks/xnli/de_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/fr_0.pkl results/pruned_masks/xnli/fr_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/es_0.pkl results/pruned_masks/xnli/es_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/zh_0.pkl results/pruned_masks/xnli/zh_0.pkl --save-dir results/cka/validation/
