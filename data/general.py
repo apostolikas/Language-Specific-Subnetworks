@@ -19,12 +19,14 @@ class ClassificationDataset(ABC):
                  lang: str = None,
                  split: str = 'train',
                  sample_n: int = 0,
-                 tokenizer_kwargs: dict = {}):
+                 tokenizer_kwargs: dict = {},
+                 no_load:bool=False):
         self.dataset_name = dataset_name
         self.tokenizer = tokinizer
         self.langs = [lang] if lang is not None else ALLOWED_LANGUAGES
         self.split = split
-        self.dataset = self._load_dataset(sample_n)
+        if not no_load:
+            self.dataset = self._load_dataset(sample_n)
         self.tokenizer_kwargs = tokenizer_kwargs
 
     def _load_dataset(self, sample_n: int):

@@ -16,18 +16,28 @@ from data import ALLOWED_LANGUAGES, get_dataset, ALLOWED_DATASETS
 from mask import set_seed
 from utils import StitchNet
 
-from mask import get_dataloader, set_seed
+from mask import get_dataloader, set_seed, get_dataset
 from eval import get_model_accuracy
 
 
 def randomize_mask(mask):
     mask = mask.T
-    for i, row in enumerate(mask[:-1]):
+    for i, row in enumerate(mask):
         mask[i] = row[torch.randperm(len(row))]
     return mask.T
 
 
+def valid(dataset, checkpoint):
+    model = Path(checkpoint).parent.stem
+    n_classes1 = get_dataset(dataset, tokenizer=None, no_load=True).n_classes
+    n_classes2 = get_dataset(model, tokenizer=None, no_load=True).n_classes
+    return n_classes1 == n_classes2
+
+
 def stitch(args):
+
+    if not valid(args.dataset, args.checkpoint2):
+        raise ValueError("End model not compatible with this dataset")
 
     set_seed(args.seed)
 
@@ -44,14 +54,19 @@ def stitch(args):
     # Shuffle mask of first net
     if args.randomize:
         model.front_mask = randomize_mask(model.front_mask)
-        # model.end_mask = randomize_mask(model.end_mask)
+
+    # Remove all heads of first net
+    if args.remove:
+        model.front_mask *= 0
+    if args.remove_end:
+        model.end_mask *= 0
 
     optimizer = torch.optim.Adam(model.transform.parameters(), lr=args.lr)
 
     # Train
     print("Train stitching..")
     n_iters = len(data_loader) * args.epochs
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_iters)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=n_iters, eta_min=1e-5)
     for epoch in range(args.epochs):
         mean_loss = 0
         for batch in tqdm(data_loader):
@@ -63,7 +78,7 @@ def stitch(args):
             optimizer.step()
             scheduler.step()
 
-        print(f"Epoch {epoch+1}/{args.epochs} loss: {mean_loss:.3f}")
+        print(f"Epoch {epoch+1}/{args.epochs} loss: {mean_loss:.3f} last_loss: {loss.item():.3f}")
 
     print('Done.')
 
@@ -98,9 +113,9 @@ def stitch(args):
     model.remove_hooks()
 
     # Front model's output might have mismatch
-    try:
+    if valid(args.dataset, args.checkpoint1):
         front_acc = get_model_accuracy(model.front_model, dataset, 32, model.front_mask)
-    except:
+    else:
         front_acc = -1
 
     results.update({
@@ -128,12 +143,14 @@ if __name__ == "__main__":
     parser.add_argument('lang', type=str, choices=ALLOWED_LANGUAGES)
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--sample-n', type=int, default=10000)
-    parser.add_argument('--epochs', type=int, default=1)
+    parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--mask-dir', type=str, default='results/pruned_masks')
     parser.add_argument('--save-path', type=str, default='results/stitch/dev.csv')
     parser.add_argument('--randomize', action='store_true')
+    parser.add_argument('--remove', action='store_true')
+    parser.add_argument('--remove-end', action='store_true')
 
     args = parser.parse_args()
     stitch(args)

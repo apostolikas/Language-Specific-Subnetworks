@@ -16,7 +16,8 @@ class StitchNet(nn.Module):
         self.n_heads = self.front_model.config.num_attention_heads
         self.n_dim = self.hidden_size // self.n_heads
 
-        self.transform = nn.Linear(self.n_heads, self.n_heads, bias=False)
+        # self.transform = nn.Linear(self.n_heads, self.n_heads, bias=False)
+        self.transform = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
         self._freeze_nets()
         self.front_model.hooks = []
@@ -39,17 +40,17 @@ class StitchNet(nn.Module):
         self._register_both_fw_hooks()
 
         # Save activations
-        act1 = torch.empty(0, 8, self.n_dim, self.n_heads).to(device)
-        act2 = torch.empty(0, 8, self.n_dim, self.n_heads).to(device)
+        act1 = torch.empty(0, 32, self.hidden_size).to(device)
+        act2 = torch.empty(0, 32, self.hidden_size).to(device)
         for batch in loader:
             _ = batch.pop('labels')
             batch = {k: v.to(device, non_blocking=True) for (k, v) in batch.items()}
             with torch.no_grad():
                 self.front_model(**batch)
                 self.end_model(**batch)
-                act1 = torch.cat([act1, self.front_model.activation[:, :8]])
-                act2 = torch.cat([act2, self.end_model.activation[:, :8]])
-            if len(act1) > 100:
+                act1 = torch.cat([act1, self.front_model.activation[:, :32]])
+                act2 = torch.cat([act2, self.end_model.activation[:, :32]])
+            if len(act1) > 200:
                 break
 
         # Initialize weights
@@ -95,29 +96,25 @@ class StitchNet(nn.Module):
     def _register_fw_hook(self, model):
 
         def _save_activations_hook(module, m_in, m_out):
-            m_in = m_in[0]
-            m_in = m_in.view(m_in.shape[0], -1, self.n_heads, self.n_dim).permute(0, 1, 3, 2)
-            model.activation = m_in.detach()
+            m_out = m_out[0]
+            # m_out = m_out.view(m_out.shape[0], -1, self.n_heads, self.n_dim).permute(0, 1, 3, 2)
+            model.activation = m_out.detach()
 
-        layer = model.roberta.encoder.layer[self.layer_idx].intermediate
+        layer = model.roberta.encoder.layer[self.layer_idx]
         hook = layer.register_forward_hook(_save_activations_hook)
         return hook
 
     def _register_load_hook(self, model):
 
-        layer = model.roberta.encoder.layer[self.layer_idx].intermediate
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        layer_copy = deepcopy(layer).to(device, non_blocking=True)
-
         def _override_activations_hook(module, m_in, m_out):
             activation = model.activation
-            activation = activation.permute(0, 1, 3, 2).reshape(activation.shape[0],
-                                                                -1,
-                                                                self.hidden_size)
-            activation = layer_copy(activation)
+            # activation = activation.permute(0, 1, 3, 2).reshape(activation.shape[0],
+            #                                                     -1,
+            #                                                     self.hidden_size)
             model.activation = None
-            return activation
+            return (activation,)
 
+        layer = model.roberta.encoder.layer[self.layer_idx]
         hook = layer.register_forward_hook(_override_activations_hook)
         return hook
 
