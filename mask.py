@@ -9,9 +9,10 @@ from torch.utils.data import DataLoader
 import random
 import numpy as np
 import torch
+import pickle
 
 from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding, AutoModelForTokenClassification, DataCollatorForTokenClassification
 
 from data import get_dataset, ALLOWED_LANGUAGES
 
@@ -24,17 +25,17 @@ def set_seed(seed):
     torch.manual_seed(seed)
 
 
-def get_dataloader(args, dataset_name, tokenizer, lang):
+def get_dataloader(args, dataset_name, tokenizer, lang, collate_fn):
     dataset = get_dataset(dataset_name, tokenizer, lang, "train", args.sample_n)
     data_loader = DataLoader(dataset,
                              batch_size=args.batch_size,
                              pin_memory=True,
                              num_workers=4,
                              drop_last=True,
-                             collate_fn=DataCollatorWithPadding(tokenizer))
+                             collate_fn=collate_fn)
+                             #DataCollatorWithPadding(tokenizer))
 
     return data_loader
-
 
 def main(args):
 
@@ -49,16 +50,33 @@ def main(args):
         set_seed(args.seed)
 
         # Define data pipeline and pretrained model
-        train_loader = get_dataloader(args, dataset_name, tokenizer=tokenizer, lang=lang)
-        model = AutoModelForSequenceClassification.from_pretrained(args.checkpoint).to(device)
+        
+        if dataset_name == 'wikiann':
+            collate_fn = DataCollatorForTokenClassification(tokenizer=tokenizer)
+            label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
+            id2label = {i: label for i, label in enumerate(label_names)}
+            label2id = {v: k for k, v in id2label.items()}
+            model = AutoModelForTokenClassification.from_pretrained(args.checkpoint, id2label=id2label, label2id=label2id).to(device)
+        else:
+            collate_fn =DataCollatorWithPadding(tokenizer)
+            model = AutoModelForSequenceClassification.from_pretrained(args.checkpoint).to(device)
 
+        train_loader =  get_dataloader(args, dataset_name, tokenizer=tokenizer, lang=lang, collate_fn =
+                                             collate_fn)
         # Calculate mask
-        head_mask = mask_heads(args, model, train_loader, dataset_name)
+        head_mask, head_importance = mask_heads(args, model, train_loader, dataset_name)
 
-        # Save
+        # Save head_mask
         os.makedirs(root, exist_ok=True)
         save_path = os.path.join(root, f"{lang}_{args.seed}.pkl")
         torch.save(head_mask, save_path)
+
+        # Save head importance
+        os.makedirs(root, exist_ok=True)
+        save_path = os.path.join(root, f"head_imp_{lang}_{args.seed}.pickle")
+        with open(save_path, 'wb') as f:
+            pickle.dump(head_importance, f)
+
         print("Saved.")
 
 
