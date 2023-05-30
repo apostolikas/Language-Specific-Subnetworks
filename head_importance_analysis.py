@@ -1,7 +1,6 @@
 import pickle
 import os
 import torch
-import cv2
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.metrics import pairwise_distances
