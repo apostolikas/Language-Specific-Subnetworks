@@ -10,7 +10,7 @@ import pandas as pd
 from tqdm import trange, tqdm
 
 from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
 
 from data import ALLOWED_LANGUAGES, get_dataset, ALLOWED_DATASETS
 from mask import set_seed
@@ -43,7 +43,11 @@ def stitch(args):
 
     # Data
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
-    data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang)
+    data_loader = get_dataloader(args,
+                                 args.dataset,
+                                 tokenizer,
+                                 args.lang,
+                                 DataCollatorWithPadding(tokenizer))
 
     # Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

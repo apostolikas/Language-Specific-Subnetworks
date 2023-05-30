@@ -74,11 +74,11 @@ def show_timesteps_head_scores(all_steps_head_scores, last_step_head_scores_info
 
         cur_big_plt_images.append(cur_task_images)
         if seed == 4:  #finished adding all seeds so now we can create the big plot
-            create_big_plot(cur_big_plt_images, f'big_timesteps3_{task}_{lang}.jpg')
+            create_big_plot(cur_big_plt_images, f'results/plots/big_timesteps3_{task}_{lang}.png')
             cur_big_plt_images = []
 
 
 if __name__ == '__main__':
     masks_dict = load_masks()
     images = show_survival_prob_plots(masks_dict)
-    create_big_plot(images, 'survivors.jpg')
+    create_big_plot(images, 'results/plots/survivors.png')
