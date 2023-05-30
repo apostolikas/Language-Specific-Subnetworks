@@ -1,9 +1,3 @@
-<style>
-    p {
-        text-align: justify;
-    }
-</style>
-
 # Investigating the cross-lingual sharing mechanism of multilingual models through their subnetworks
 
 March 2023 | Nikolaos Apostolikas, Gergely Papp, Panagiotis Tsakas, Vasileios Vythoulkas
