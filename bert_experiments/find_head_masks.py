@@ -26,7 +26,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 from finetune import compute_ner_metrics
-
+from data import WIKIANN_NAME
 
 def entropy(p):
     """ Compute the entropy of a probability distribution """
@@ -96,7 +96,7 @@ def compute_heads_importance(args,
             head_importance += head_mask.grad.abs().detach()
 
         # Also store our logits/labels if we want to compute metrics afterwards
-        if task_name=='wikiann':
+        if task_name==WIKIANN_NAME:
             logits = logits.detach().cpu() # batch_size, max_seq_length, labels
             tmp_preds = torch.argmax(logits,axis=-1) # batch_size, max_seq_length
             tmp_preds = tmp_preds.detach().cpu().tolist()
@@ -144,7 +144,7 @@ def compute_heads_importance(args,
     return attn_entropy, head_importance, preds, labels
 
 def metric_score(task_name, preds, labels):
-    if task_name=='wikiann':
+    if task_name==WIKIANN_NAME:
         dict_original_score = compute_ner_metrics(labels, preds)
         original_score = dict_original_score['f1']
     else:    

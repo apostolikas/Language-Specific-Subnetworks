@@ -10,7 +10,7 @@ from transformers import (AutoTokenizer,
                           EarlyStoppingCallback, AutoModelForTokenClassification)
 import evaluate #we need !pip install seqeval
 
-from data import get_dataset, ALLOWED_DATASETS
+from data import get_dataset, ALLOWED_DATASETS, WIKIANN_NAME
 
 
 def compute_metrics():
@@ -54,7 +54,7 @@ def main(args):
     # Get model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    if args.dataset == 'wikiann':
+    if args.dataset == WIKIANN_NAME:
         label_names = train.dataset.features["ner_tags"].feature.names
         id2label = {i: label for i, label in enumerate(label_names)}
         label2id = {v: k for k, v in id2label.items()}
@@ -81,7 +81,7 @@ def main(args):
                                       dataloader_num_workers=2,
                                       save_total_limit=1,
                                       fp16=True)
-    if args.dataset == 'wikiann':
+    if args.dataset == WIKIANN_NAME:
         trainer = Trainer(model,
                       training_args,
                       train_dataset=train,
@@ -133,5 +133,4 @@ if __name__ == "__main__":
                         help='Number of train samples. 0 means all.')
 
     args = parser.parse_args()
-
     main(args)

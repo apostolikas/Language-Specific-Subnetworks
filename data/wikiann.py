@@ -3,18 +3,17 @@ import torch
 
 from .general import ClassificationDataset
 
-
 class WikiannDataset(ClassificationDataset):
 
     name = 'wikiann'
-    n_classes = 2
+    n_classes = 7
 
     def __init__(self,
                  tokenizer: AutoTokenizer,
                  lang: str = None,
                  split: str = 'train',
-                 sample_n: int = 0):
-        super().__init__("wikiann", tokenizer, lang, split, sample_n)
+                 sample_n: int = 0,**kwargs):
+        super().__init__('wikiann', tokenizer, lang, split, sample_n, **kwargs)
 
     def _get_input(self, row: dict):
         return row['tokens']

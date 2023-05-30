@@ -9,12 +9,14 @@ import torch
 from pathlib import Path
 import numpy as np
 from tqdm import tqdm
+from finetune import compute_ner_metrics
 from torch.utils.data import DataLoader
 from transformers import (AutoTokenizer,
                           AutoModelForSequenceClassification,
                           TrainingArguments,
                           DataCollatorWithPadding,
-                          Trainer)
+                          Trainer,
+                          DataCollatorForTokenClassification)
 import evaluate
 
 from data import get_dataset, ALLOWED_DATASETS, ALLOWED_LANGUAGES
@@ -59,6 +61,35 @@ def get_model_accuracy(model, dataset, batch_size, head_mask=None):
             hits += (preds == labels).sum().item()
 
     return hits / total
+
+
+def get_model_f1(model, dataset, batch_size, head_mask=None):
+    data_loader = DataLoader(dataset,
+                             batch_size=batch_size,
+                             pin_memory=True,
+                             num_workers=4,
+                             drop_last=False,
+                             collate_fn=DataCollatorForTokenClassification(dataset.tokenizer))
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    if head_mask is not None:
+        head_mask = head_mask.to(device)
+
+    all_preds = []
+    all_labels = []
+    for batch in tqdm(data_loader, desc='Evaluation'):
+        batch = {k: v.to(device, non_blocking=True) for (k, v) in batch.items()}
+        if head_mask is not None:
+            batch.update({"head_mask": head_mask})
+        with torch.no_grad():
+            logits = model(**batch)[1]
+            preds = logits.detach().argmax(dim=-1)
+            all_preds.extend(preds.cpu().tolist())  # maybe dummy way to do it
+            all_labels.extend(batch['labels'].detach().cpu().tolist())
+
+    f1 = compute_ner_metrics(all_labels, all_preds)['f1']
+    return f1
 
 
 def main(args):
