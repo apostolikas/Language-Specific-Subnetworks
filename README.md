@@ -22,6 +22,29 @@ It has been shown that different, equally good subnetworks exist in a transforme
 
 &nbsp;
 
+## Instructions
+
+### Preparation
+
+1. Clone this repo:
+`git clone https://github.com/apostolikas/Language-Specific-Subnetworks.git `
+
+2. Download the fine-tuned models used in this project along with the pickle files needed for stitching and CKA using this [link](https://drive.google.com/file/d/1AUcMuQZkXixQoqN92ZopumoATcXF39pc/view?usp=sharing).
+
+<div style="color: red; font-weight: 800"> TODO </div>   
+
+3. Install the environment running the `install_env.job` file.
+
+### Use Cases
+
+<div style="color: red; font-weight: 800"> TODO </div>
+
+- Fine-tuning
+- Evaluation
+- Masking
+
+&nbsp;
+
 ## References
 
 <a id="prasanna2020bert"></a> [1] Sai Prasanna, Anna Rogers, and Anna Rumshisky. 2020. When bert plays the lottery, all tickets are winning. arXiv preprint arXiv:2005.00561.
