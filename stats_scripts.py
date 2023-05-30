@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import itertools
 
 from data import ALLOWED_LANGUAGES, ALLOWED_DATASETS
-
 LANGUAGES = ALLOWED_LANGUAGES
 TASKS = ALLOWED_DATASETS
 NUM_SEEDS = 5
@@ -59,7 +58,7 @@ def determine_importance(masks_dict: dict) -> torch.Tensor:
     return ratio_dict, importance_dict, layer_importance_dict
 
 
-def visualize_dictionaries(input_dict: dict, mode: str):
+def visualize_dictionaries(input_dict: dict, mode: str) -> None:
     '''
     Plots the content of a nested dicts (1st lang - 2nd task)
     '''
@@ -102,56 +101,56 @@ def visualize_dictionaries(input_dict: dict, mode: str):
     plt.show()
 
 
-def determine_overlap(ratio_dict, task, mode):
+
+def determine_overlap(mask_dict:dict, task:str, lang:str, mode:str) -> None:
     '''
-    Returns:
-        overlap_percentage: percentage of common values for the two ratio matrices
-        Also plots the overlap.
+    Prints:
+        percentage of overlap langwise or taskwise
     '''
-    if mode == 'lang':
-        fig, ax = plt.subplots(2, 5, figsize=(10, 8))
-        fig.suptitle(f'Overlap for Task: {task} (Language-wise)')
 
-        for i, (lang1, lang2) in enumerate(itertools.combinations(LANGUAGES, r=2)):
-            tensor1 = ratio_dict[task][lang1]
-            tensor2 = ratio_dict[task][lang2]
-            eq = torch.eq(tensor1, tensor2)
-            overlap_count = torch.sum(eq).item()
-            total_elements = tensor1.numel()
-            overlap_percentage = (overlap_count / total_elements) * 100
-            print(
-                f'The overlap percentage for {task, lang1} and {task, lang2} is {overlap_percentage:.2f}%'
-            )
-
-            row = i // 5
-            col = i % 5
-            ax[row, col].imshow(eq, cmap='Blues')
-            ax[row, col].set_ylabel('Layer')
-            ax[row, col].set_xlabel('Head')
-            ax[row, col].set_title(f'{task, lang1} - {task, lang2}')
-            ax[row, col].set_xticks(np.arange(0, 12))
-            ax[row, col].set_yticks(np.arange(0, 12))
-            ax[row, col].set_xticklabels(np.arange(1, 13))
-            ax[row, col].set_yticklabels(np.arange(1, 13))
-
-        plt.tight_layout()
-        plt.show()
-
-    elif mode == 'task':
-
-        for i, (task1, task2) in enumerate(itertools.combinations(TASKS, r=2)):
-            for j, lang in enumerate(LANGUAGES):
-                tensor1 = ratio_dict[task1][lang]
-                tensor2 = ratio_dict[task2][lang]
+    if mode == 'l':
+        seeds_dict = {}
+        for seed in SEEDS:
+            for i, (lang1, lang2) in enumerate(itertools.combinations(LANGUAGES, r=2)):
+                tensor1 = mask_dict[lang1][task][seed]
+                tensor2 = mask_dict[lang2][task][seed]
                 eq = torch.eq(tensor1, tensor2)
                 overlap_count = torch.sum(eq).item()
                 total_elements = tensor1.numel()
                 overlap_percentage = (overlap_count / total_elements) * 100
-                print(
-                    f'The overlap percentage for {task1} ({lang}) and {task2} ({lang}) is {overlap_percentage:.2f}%'
+                if (lang1,lang2) in seeds_dict:
+                    seeds_dict[(lang1,lang2)] += overlap_percentage
+                else: 
+                    seeds_dict[(lang1,lang2)] = overlap_percentage
+        for key in seeds_dict:
+            seeds_dict[key] /= NUM_SEEDS
+            print(
+                f'The overlap percentage for {task, key[0]} and {task, key[1]} is {seeds_dict[key]:.2f}%'
                 )
 
-    return overlap_percentage
+
+    elif mode == 't':
+        seeds_dict = {}
+        for seed in SEEDS:
+            for i, (task1, task2) in enumerate(itertools.combinations(TASKS, r=2)):
+                tensor1 = mask_dict[lang][task1][seed]
+                tensor2 = mask_dict[lang][task2][seed]
+                eq = torch.eq(tensor1, tensor2)
+                overlap_count = torch.sum(eq).item()
+                total_elements = tensor1.numel()
+                overlap_percentage = (overlap_count / total_elements) * 100
+
+                if (task1,task2) in seeds_dict:
+                    seeds_dict[(task1,task2)] += overlap_percentage
+                else: 
+                    seeds_dict[(task1,task2)] = overlap_percentage
+        for key in seeds_dict:
+            seeds_dict[key] /= NUM_SEEDS
+            print(
+                f'The overlap percentage for {lang, key[0]} and {lang, key[1]} is {seeds_dict[key]:.2f}%'
+                )
+
+
 
 
 if __name__ == '__main__':
@@ -159,8 +158,10 @@ if __name__ == '__main__':
     ratio_dict, importance_dict, layer_importance_dict = determine_importance(masks_dict)
     visualize_dictionaries(ratio_dict, 'mask')
     visualize_dictionaries(layer_importance_dict, 'importance')
-    # overlap_marc = determine_overlap(ratio_dict,'marc','lang')
-    # overlap_xnli = determine_overlap(ratio_dict,'xnli','lang')
-    # overlap_paws = determine_overlap(ratio_dict,'paws-x','lang')
-    # overlap_nes = determine_overlap(ratio_dict,'ner','lang')
-    # overlap_taskwise = determine_overlap(ratio_dict,None,'task')
+    print('Overlap of subnetworks for the same task across different languages')
+    for task in TASKS:
+        determine_overlap(masks_dict,task,None,'l')
+    print('\n\n')
+    print('Overlap of subnetworks for the same language across different tasks')
+    for lang in LANGUAGES:
+        determine_overlap(masks_dict,None,lang,'t')
