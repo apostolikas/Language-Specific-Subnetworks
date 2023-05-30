@@ -4,13 +4,17 @@ from copy import deepcopy
 from transformers import AutoModelForSequenceClassification, AutoModelForTokenClassification
 from data import WIKIANN_NAME
 
+
 def init_XML(checkpoint, id2label):
     if WIKIANN_NAME in checkpoint:
         label2id = {v: k for k, v in id2label.items()}
-        model = AutoModelForTokenClassification.from_pretrained(checkpoint, id2label=id2label, label2id=label2id) 
-    else: # sequence classification
+        model = AutoModelForTokenClassification.from_pretrained(checkpoint,
+                                                                id2label=id2label,
+                                                                label2id=label2id)
+    else:  # sequence classification
         model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
     return model
+
 
 class StitchNet(nn.Module):
 
@@ -38,7 +42,7 @@ class StitchNet(nn.Module):
         self.front_mask = torch.load(mask1).to(self.front_model.device)
         self.end_mask = torch.load(mask2).to(self.end_model.device)
 
-    def find_optimal_init(self, loader, num_tokens):
+    def find_optimal_init(self, loader, num_tokens=16):
         """As suggested in Csiszarik et al (2020), we initialize the transformation
            matrix with pseudo inverse between activations
         """
@@ -64,7 +68,7 @@ class StitchNet(nn.Module):
 
             if len(act1) > 200:
                 break
-            
+
         # Initialize weights
         optimal_w = self._pseudo_inverse(act1, act2)
         with torch.no_grad():

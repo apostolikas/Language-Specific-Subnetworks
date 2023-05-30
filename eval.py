@@ -62,6 +62,7 @@ def get_model_accuracy(model, dataset, batch_size, head_mask=None):
 
     return hits / total
 
+
 def get_model_f1(model, dataset, batch_size, head_mask=None):
     data_loader = DataLoader(dataset,
                              batch_size=batch_size,
@@ -71,7 +72,7 @@ def get_model_f1(model, dataset, batch_size, head_mask=None):
                              collate_fn=DataCollatorForTokenClassification(dataset.tokenizer))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-   
+
     if head_mask is not None:
         head_mask = head_mask.to(device)
 
@@ -84,11 +85,12 @@ def get_model_f1(model, dataset, batch_size, head_mask=None):
         with torch.no_grad():
             logits = model(**batch)[1]
             preds = logits.detach().argmax(dim=-1)
-            all_preds.extend(preds.cpu().tolist()) # maybe dummy way to do it
+            all_preds.extend(preds.cpu().tolist())  # maybe dummy way to do it
             all_labels.extend(batch['labels'].detach().cpu().tolist())
-     
-    f1 = compute_ner_metrics(all_labels, all_preds)
+
+    f1 = compute_ner_metrics(all_labels, all_preds)['f1']
     return f1
+
 
 def main(args):
 
