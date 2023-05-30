@@ -38,7 +38,7 @@ class StitchNet(nn.Module):
         self.front_mask = torch.load(mask1).to(self.front_model.device)
         self.end_mask = torch.load(mask2).to(self.end_model.device)
 
-    def find_optimal_init(self, loader):
+    def find_optimal_init(self, loader, num_tokens):
         """As suggested in Csiszarik et al (2020), we initialize the transformation
            matrix with pseudo inverse between activations
         """
@@ -50,8 +50,8 @@ class StitchNet(nn.Module):
         self._register_both_fw_hooks()
 
         # Save activations
-        act1 = torch.empty(0, 2, self.hidden_size).to(device)
-        act2 = torch.empty(0, 2, self.hidden_size).to(device)
+        act1 = torch.empty(0, num_tokens, self.hidden_size).to(device)
+        act2 = torch.empty(0, num_tokens, self.hidden_size).to(device)
 
         for batch in loader:
             _ = batch.pop('labels')
@@ -59,8 +59,8 @@ class StitchNet(nn.Module):
             with torch.no_grad():
                 self.front_model(**batch)
                 self.end_model(**batch)
-                act1 = torch.cat([act1, self.front_model.activation[:, :2]])
-                act2 = torch.cat([act2, self.end_model.activation[:, :2]])
+                act1 = torch.cat([act1, self.front_model.activation[:, :num_tokens]])
+                act2 = torch.cat([act2, self.end_model.activation[:, :num_tokens]])
 
             if len(act1) > 200:
                 break

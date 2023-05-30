@@ -43,18 +43,27 @@ def stitch(args):
     # Data
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
     if args.dataset == WIKIANN_NAME:
-        collate_fn = DataCollatorForTokenClassification(tokenizer=tokenizer)#pad_to_multiple_of=8
+        # maybe we can add padding to multiple of 8
+        collate_fn = DataCollatorForTokenClassification(tokenizer=tokenizer,)#pad_to_multiple_of=8)
         data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang, collate_fn)
         label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
         id2label = {i: label for i, label in enumerate(label_names)}
+
+        min_length = 1000 # dummy init
+        for b in data_loader:
+            min_length = min(min_length, b['input_ids'].shape[1])
+        num_tokens_init = min_length
     else: # sequence classification
         collate_fn = DataCollatorWithPadding(tokenizer)
         data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang, collate_fn)
         id2label = None # just default value
+        num_tokens_init = 32
+    
+
     # Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = StitchNet(args.checkpoint1, args.checkpoint2, args.layer, id2label).to(device)
-    model.find_optimal_init(data_loader)
+    model.find_optimal_init(data_loader, num_tokens_init)
     model.load_masks(args.mask1, args.mask2)
 
     # Shuffle mask of first net
@@ -107,10 +116,10 @@ def stitch(args):
     # Just the metric name and the function to get the metric results changes
     if args.dataset == WIKIANN_NAME:
         get_metric_results = get_model_f1
-        metric_name = 'f1'
+        # metric_name = 'f1'
     else: # sequence classification
         get_metric_results = get_model_accuracy
-        metric_name = 'acc'
+        # metric_name = 'acc'
 
     results = {
         "dataset": args.dataset,
@@ -124,8 +133,8 @@ def stitch(args):
         "end_lang": mask_lang2,
         "front_seed": mask_seed1,
         "end_seed": mask_seed2,
-        f"baseline_{metric_name}": get_metric_results(baseline, dataset, 32, baseline_mask),
-        f"stitch_{metric_name}": get_metric_results(model, dataset, 32)
+        f"baseline_metric": get_metric_results(baseline, dataset, 32, baseline_mask),
+        f"stitch_metric": get_metric_results(model, dataset, 32)
     }
     model.remove_hooks()
 
@@ -136,8 +145,8 @@ def stitch(args):
         front_results = -1
 
         results.update({
-            f"front_{metric_name}": front_results,
-            f"end_{metric_name}": get_metric_results(model.end_model, dataset, 32, model.end_mask),
+            f"front_metric": front_results,
+            f"end_metric": get_metric_results(model.end_model, dataset, 32, model.end_mask),
         })
         print(results)
 
@@ -168,6 +177,5 @@ if __name__ == "__main__":
     parser.add_argument('--randomize', action='store_true')
     parser.add_argument('--remove', action='store_true')
     parser.add_argument('--remove-end', action='store_true')
-
     args = parser.parse_args()
     stitch(args)
