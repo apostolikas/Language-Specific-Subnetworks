@@ -8,17 +8,16 @@ import argparse
 import torch
 import pandas as pd
 from tqdm import trange, tqdm
-
 from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorForTokenClassification, DataCollatorWithPadding
 
-from data import ALLOWED_LANGUAGES, get_dataset, ALLOWED_DATASETS
+from data import ALLOWED_LANGUAGES, get_dataset, ALLOWED_DATASETS, WIKIANN_NAME
 from mask import set_seed
 from utils import StitchNet
 
 from mask import get_dataloader, set_seed, get_dataset
-from eval import get_model_accuracy
-
+from eval import get_model_accuracy, get_model_f1
+from utils.affine_stitch import init_XML
 
 def randomize_mask(mask):
     mask = mask.T
@@ -43,11 +42,18 @@ def stitch(args):
 
     # Data
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
-    data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang)
-
+    if args.dataset == WIKIANN_NAME:
+        collate_fn = DataCollatorForTokenClassification(tokenizer=tokenizer)#pad_to_multiple_of=8
+        data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang, collate_fn)
+        label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
+        id2label = {i: label for i, label in enumerate(label_names)}
+    else: # sequence classification
+        collate_fn = DataCollatorWithPadding(tokenizer)
+        data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang, collate_fn)
+        id2label = None # just default value
     # Model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = StitchNet(args.checkpoint1, args.checkpoint2, args.layer).to(device)
+    model = StitchNet(args.checkpoint1, args.checkpoint2, args.layer, id2label).to(device)
     model.find_optimal_init(data_loader)
     model.load_masks(args.mask1, args.mask2)
 
@@ -91,9 +97,20 @@ def stitch(args):
     mask_lang2, mask_seed2 = os.path.split(args.mask2)[-1].split('.')[0].split('_')
     dataset = get_dataset(args.dataset, tokenizer, args.lang, split="test")
     baseline_ckp = args.checkpoint1.replace(model_name1, args.dataset)
-    baseline = AutoModelForSequenceClassification.from_pretrained(baseline_ckp).to(device)
+
+    baseline = init_XML(baseline_ckp, id2label)
+    baseline.to(device)
+    
     baseline_mask = os.path.join(args.mask_dir, args.dataset, f"{args.lang}_0.pkl")
     baseline_mask = torch.load(baseline_mask)
+
+    # Just the metric name and the function to get the metric results changes
+    if args.dataset == WIKIANN_NAME:
+        get_metric_results = get_model_f1
+        metric_name = 'f1'
+    else: # sequence classification
+        get_metric_results = get_model_accuracy
+        metric_name = 'acc'
 
     results = {
         "dataset": args.dataset,
@@ -107,22 +124,22 @@ def stitch(args):
         "end_lang": mask_lang2,
         "front_seed": mask_seed1,
         "end_seed": mask_seed2,
-        "baseline_acc": get_model_accuracy(baseline, dataset, 32, baseline_mask),
-        "stitch_acc": get_model_accuracy(model, dataset, 32)
+        f"baseline_{metric_name}": get_metric_results(baseline, dataset, 32, baseline_mask),
+        f"stitch_{metric_name}": get_metric_results(model, dataset, 32)
     }
     model.remove_hooks()
 
     # Front model's output might have mismatch
     if valid(args.dataset, args.checkpoint1):
-        front_acc = get_model_accuracy(model.front_model, dataset, 32, model.front_mask)
+        front_results = get_metric_results(model.front_model, dataset, 32, model.front_mask)
     else:
-        front_acc = -1
+        front_results = -1
 
-    results.update({
-        f"front_acc": front_acc,
-        f"end_acc": get_model_accuracy(model.end_model, dataset, 32, model.end_mask),
-    })
-    print(results)
+        results.update({
+            f"front_{metric_name}": front_results,
+            f"end_{metric_name}": get_metric_results(model.end_model, dataset, 32, model.end_mask),
+        })
+        print(results)
 
     # Save
     save_dir = os.path.split(args.save_path)[0]
