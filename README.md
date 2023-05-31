@@ -31,9 +31,11 @@ It has been shown that different, equally good subnetworks exist in a transforme
 
 2. Download the fine-tuned models used in this project along with the pickle files needed for stitching and CKA using this [link](https://drive.google.com/file/d/1AUcMuQZkXixQoqN92ZopumoATcXF39pc/view?usp=sharing).
 
-<div style="color: red; font-weight: 800"> TODO </div>   
+3. Move the downloaded file in the project folder and extract the contents of the file by running `unzip results.zip`.
 
-3. Install the environment running the `install_env.job` file.
+<div style="color: red; font-weight: 800"> TODO </div>
+
+4. Install the environment running the `install_env.job` file.
 
 ### Use Cases
 
