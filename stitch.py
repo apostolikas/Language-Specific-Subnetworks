@@ -9,7 +9,7 @@ import torch
 import pandas as pd
 from tqdm import trange, tqdm
 from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorForTokenClassification, DataCollatorWithPadding
+from transformers import AutoTokenizer, DataCollatorForTokenClassification, DataCollatorWithPadding
 
 from data import ALLOWED_LANGUAGES, get_dataset, ALLOWED_DATASETS, WIKIANN_NAME
 from mask import set_seed
@@ -45,14 +45,12 @@ def stitch(args):
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
 
     if args.dataset == WIKIANN_NAME:
-        # maybe we can add padding to multiple of 8
         collate_fn = DataCollatorForTokenClassification(tokenizer=tokenizer)  #pad_to_multiple_of=8)
-        label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
-        id2label = {i: label for i, label in enumerate(label_names)}
-    else:  # sequence classification
+    else:
         collate_fn = DataCollatorWithPadding(tokenizer)
-        id2label = None  # just default value
 
+    label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
+    id2label = {i: label for i, label in enumerate(label_names)}
     data_loader = get_dataloader(args, args.dataset, tokenizer, args.lang, collate_fn)
 
     # Model

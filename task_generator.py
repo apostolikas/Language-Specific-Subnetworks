@@ -31,6 +31,8 @@ CONFIGS = {
         "layer": [i for i in range(12)]
     },
     "stitch_across_seeds": {
+        "model_name": [f"results/models/{model}/best" for model in ALLOWED_DATASETS],
+        "lang": ALLOWED_LANGUAGES,
         "layer": [i for i in range(12)],
         "seed1": [i for i in range(5)],
         "seed2": [i for i in range(5)],
@@ -115,11 +117,9 @@ def stitch_across_tasks(model_name1, model_name2, layer):
     return f"python stitch.py {model_name1} {model_name2} {mask1} {mask2} {layer} {dataset2} {lang} --save-path results/stitch/stitch_across_tasks.csv"
 
 
-def stitch_across_seeds(layer, seed1, seed2):
+def stitch_across_seeds(model_name, lang, layer, seed1, seed2):
     if seed2 != (seed1 + 1) % 5:
         return None
-    model_name = 'results/models/xnli/best'
-    lang = 'fr'
     dataset = Path(model_name).parent.stem
     mask1 = f"results/pruned_masks/{dataset}/{lang}_{seed1}.pkl"
     mask2 = f"results/pruned_masks/{dataset}/{lang}_{seed2}.pkl"
