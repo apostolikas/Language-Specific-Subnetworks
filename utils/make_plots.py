@@ -108,6 +108,8 @@ def plot_tSNE(tsne_output, head_scores_info):
     dict_task_colors = {task: colours[i] for i, task in enumerate(ALLOWED_DATASETS)}
     dict_language_markers = {lang: markers[i] for i, lang in enumerate(LANGUAGES)}
 
+    plt.figure(figsize=(8, 4))
+
     for point, (task, language, _) in zip(tsne_output, head_scores_info):
         plt.scatter(point[0],
                     point[1],
@@ -121,14 +123,16 @@ def plot_tSNE(tsne_output, head_scores_info):
                        color=dict_task_colors[task],
                        marker="_",
                        linestyle='None',
+                       markeredgewidth=3.,
                        markersize=10))
 
     language_legend_handles = []
     for lang in LANGUAGES:
         language_legend_handles.append(
             plt.Line2D([], [],
-                       color='lightgray',
+                       color='gray',
                        marker=dict_language_markers[lang],
+                       markeredgewidth=3.,
                        linestyle='None',
                        markersize=10))
 
@@ -138,16 +142,24 @@ def plot_tSNE(tsne_output, head_scores_info):
                    ALLOWED_DATASETS,
                    loc='best',
                    title='Tasks',
-                   bbox_to_anchor=(1.02, 1)))
+                   fontsize=12,
+                   bbox_to_anchor=(0.99, 0.5)))
+    # plt.legend(task_legend_handles,
+    #            ALLOWED_DATASETS,
+    #            loc='best',
+    #            title='Tasks',
+    #            bbox_to_anchor=(0.30, 0.30)))
 
     plt.legend(language_legend_handles,
                LANGUAGES,
                loc='lower left',
                title='Languages',
+               fontsize=12,
                bbox_to_anchor=(1.02, 0.35))
 
-    plt.xlabel("Dimension 1")
-    plt.ylabel("Dimension 2")
-    plt.title("t-SNE visualization of subnetworks' masks")
+    plt.xlabel("Dimension 1", fontsize=14)
+    plt.ylabel("Dimension 2", fontsize=14)
+    plt.title("t-SNE visualization of subnetworks' masks", fontsize=18)
     plt.tight_layout()
-    plt.show()
+    plt.grid()
+    plt.savefig('results/plots/tsne.pdf')

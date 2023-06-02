@@ -1,16 +1,30 @@
 import torch
 from torch import nn
 from copy import deepcopy
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoModelForTokenClassification
+from data import WIKIANN_NAME
+
+
+def init_XML(checkpoint, id2label):
+    if WIKIANN_NAME in checkpoint:
+        label2id = {v: k for k, v in id2label.items()}
+        model = AutoModelForTokenClassification.from_pretrained(checkpoint,
+                                                                id2label=id2label,
+                                                                label2id=label2id)
+    else:  # sequence classification
+        model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
+    return model
 
 
 class StitchNet(nn.Module):
 
-    def __init__(self, ckp1: str, ckp2: str, layer_idx: int):
+    def __init__(self, ckp1: str, ckp2: str, layer_idx: int, id2label: dict = None):
+        # The last label is only useful for NER so I added default None
         super().__init__()
         # Note: these models are in eval mode by default
-        self.front_model = AutoModelForSequenceClassification.from_pretrained(ckp1)
-        self.end_model = AutoModelForSequenceClassification.from_pretrained(ckp2)
+        self.front_model = init_XML(ckp1, id2label)
+        self.end_model = init_XML(ckp2, id2label)
+
         self.layer_idx = layer_idx
         self.hidden_size = self.front_model.config.hidden_size
         self.n_heads = self.front_model.config.num_attention_heads
@@ -28,7 +42,7 @@ class StitchNet(nn.Module):
         self.front_mask = torch.load(mask1).to(self.front_model.device)
         self.end_mask = torch.load(mask2).to(self.end_model.device)
 
-    def find_optimal_init(self, loader):
+    def find_optimal_init(self, loader, num_tokens=16):
         """As suggested in Csiszarik et al (2020), we initialize the transformation
            matrix with pseudo inverse between activations
         """
@@ -40,16 +54,18 @@ class StitchNet(nn.Module):
         self._register_both_fw_hooks()
 
         # Save activations
-        act1 = torch.empty(0, 32, self.hidden_size).to(device)
-        act2 = torch.empty(0, 32, self.hidden_size).to(device)
+        act1 = torch.empty(0, num_tokens, self.hidden_size).to(device)
+        act2 = torch.empty(0, num_tokens, self.hidden_size).to(device)
+
         for batch in loader:
             _ = batch.pop('labels')
             batch = {k: v.to(device, non_blocking=True) for (k, v) in batch.items()}
             with torch.no_grad():
                 self.front_model(**batch)
                 self.end_model(**batch)
-                act1 = torch.cat([act1, self.front_model.activation[:, :32]])
-                act2 = torch.cat([act2, self.end_model.activation[:, :32]])
+                act1 = torch.cat([act1, self.front_model.activation[:, :num_tokens]])
+                act2 = torch.cat([act2, self.end_model.activation[:, :num_tokens]])
+
             if len(act1) > 200:
                 break
 
@@ -63,6 +79,8 @@ class StitchNet(nn.Module):
         self._register_default_hooks()
 
     def forward(self, *args, **kwargs):
+        # are labels here useful for NER since we have some with ignore index -100?
+        # probably not
         with torch.no_grad():
             # Note: leaving out label because number of classes might differ
             self.front_model(kwargs['input_ids'],

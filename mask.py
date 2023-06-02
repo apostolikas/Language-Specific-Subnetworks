@@ -14,7 +14,7 @@ import pickle
 from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding, AutoModelForTokenClassification, DataCollatorForTokenClassification
 
-from data import get_dataset, ALLOWED_LANGUAGES
+from data import get_dataset, ALLOWED_LANGUAGES, WIKIANN_NAME
 
 from bert_experiments import mask_heads
 
@@ -33,7 +33,6 @@ def get_dataloader(args, dataset_name, tokenizer, lang, collate_fn):
                              num_workers=4,
                              drop_last=True,
                              collate_fn=collate_fn)
-                             #DataCollatorWithPadding(tokenizer))
 
     return data_loader
 
@@ -51,7 +50,7 @@ def main(args):
 
         # Define data pipeline and pretrained model
         
-        if dataset_name == 'wikiann':
+        if dataset_name == WIKIANN_NAME:
             collate_fn = DataCollatorForTokenClassification(tokenizer=tokenizer)
             label_names = ['O', 'B-PER', 'I-PER', 'B-ORG', 'I-ORG', 'B-LOC', 'I-LOC']
             id2label = {i: label for i, label in enumerate(label_names)}

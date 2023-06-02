@@ -8,8 +8,6 @@ from pathlib import Path
 
 from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
 
-ALLOWED_DATASETS.remove('wikiann')
-
 CONFIGS = {
     # STITCH
     "stitch_randomly": {
