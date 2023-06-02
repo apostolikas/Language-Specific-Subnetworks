@@ -1,12 +1,17 @@
 # Investigating the cross-lingual sharing mechanism of multilingual models through their subnetworks
 
+![stitching_results](https://github.com/apostolikas/Language-Specific-Subnetworks/assets/9435563/48624967-ee28-49dd-a80e-bccfdb124cb4)
+
 > It has been shown that different, equally good subnetworks exist in a transformer model after fine-tuning and pruning it [[1]](#prasanna2020bert). In this project, we investigate the similarity of unilingual subnetworks, obtained by structured-pruned multilingual transformer models. By comparing subnetworks based on (i) mask similarity, (ii) representation similarity, and (iii) functional similarity, we demonstrate that unilingual subnetworks can effectively solve the same task in different languages and solve other tasks in early layers, even with shuffled masks. However, the last layers of the subnetworks are task-specific and cannot generalize to other tasks. Our research also provides insight into mutual information shared between cross-lingual subnetworks.
 
 
 Nikolaos Apostolikas, Gergely Papp, Panagiotis Tsakas, Vasileios Vythoulkas <br />
-March 2023
+*March 2023*
 
 -------------------
+
+This is the official repository of **[Investigating the cross-lingual sharing mechanism of multilingual models through their subnetworks](#)**.
+Please find instructions to reproduce the results below.
 
 &nbsp;
 
