@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 import os
 
@@ -7,7 +6,7 @@ if "./" not in sys.path:
     sys.path.append("./")
 
 from data import ALLOWED_LANGUAGES, ALLOWED_DATASETS
-from utils.make_plots import plot_square_matrix, create_big_plot
+from utils.make_plots import plot_square_matrix
 from plot.stats_scripts import load_masks, determine_importance
 
 LANGUAGES = ALLOWED_LANGUAGES
@@ -15,12 +14,10 @@ TASKS = ALLOWED_DATASETS
 SAVE_FOLDER = "results/plots"
 
 
-def show_survival_prob_plots(masks_dict):
+def save_survival_prob_plots(masks_dict):
     ratio_dict, _, _ = determine_importance(masks_dict)
     os.makedirs(f'{SAVE_FOLDER}/survivor_probability/', exist_ok=True)
-    images = []
     for task in TASKS:
-        cur_task_images = []
         for lang in LANGUAGES:
             matrix = ratio_dict[task][lang].numpy()
             x_labels = [i for i in range(matrix.shape[0])]
@@ -34,22 +31,15 @@ def show_survival_prob_plots(masks_dict):
                                x_title='Head',
                                y_title='Layer',
                                title=f'survivor_probability_{task}_{lang}')
-            img = cv2.imread(save_path + '.png')
-            cur_task_images.append(img)
-        images.append(cur_task_images)
-    return images
-
 
 def show_timesteps_head_scores(all_steps_head_scores, last_step_head_scores_info):
     '''
     same language, same task show in a big figure all head scores for the first 4 pruning steps and all seeds
     '''
-    cur_big_plt_images = []
     path = os.path.join(SAVE_FOLDER, 'timesteps')
     os.makedirs(path, exist_ok=True)
     for i, tmp_all_steps_scores in enumerate(all_steps_head_scores):
         task, lang, seed = last_step_head_scores_info[i]
-        cur_task_images = []
         for t, cur_step_scores in enumerate(tmp_all_steps_scores):  # for all pruning timesteps
             cur_step_scores = cur_step_scores.detach().cpu().numpy()
             x_labels = [i for i in range(cur_step_scores.shape[0])]
@@ -68,21 +58,7 @@ def show_timesteps_head_scores(all_steps_head_scores, last_step_head_scores_info
                                title,
                                colour_map='binary',
                                change_colors=True)
-            if t <= 3:  #see only the first 4 pruning timesteps
-                img = cv2.imread(save_path + '.png')
-                cur_task_images.append(img)
-
-        for i in range(4 - len(cur_task_images)):
-            dummy_img = np.ones_like(cur_task_images[-1])
-            cur_task_images.append(dummy_img)
-
-        cur_big_plt_images.append(cur_task_images)
-        if seed == 4:  #finished adding all seeds so now we can create the big plot
-            create_big_plot(cur_big_plt_images, f'results/plots/big_timesteps3_{task}_{lang}.png')
-            cur_big_plt_images = []
-
 
 if __name__ == '__main__':
     masks_dict = load_masks()
-    images = show_survival_prob_plots(masks_dict)
-    create_big_plot(images, 'results/plots/survivors.png')
+    save_survival_prob_plots(masks_dict)

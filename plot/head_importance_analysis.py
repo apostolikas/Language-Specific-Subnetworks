@@ -17,7 +17,6 @@ if "./" not in sys.path:
 from mask import set_seed
 
 from utils.make_plots import plot_tSNE
-from plot.call_plots import show_timesteps_head_scores
 from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
 
 # settings
@@ -124,7 +123,6 @@ def apply_tSNE(input):
     # Create a t-SNE object
     tsne = TSNE(n_components=2, random_state=42, perplexity=10, n_iter=1500)
     output = tsne.fit_transform(input)
-    print('KL divergence ', tsne.kl_divergence_)
     return output
 
 
@@ -137,28 +135,25 @@ def main(args):
 
     # Compute the distance matrix
     dist_matrix = pairwise_distances(last_step_head_scores, metric=args.distance_metric)
+    if args.algorithm is not None:
+        if args.algorithm == 'kmeans':
+            cluster_labels = kmeans_clustering(dist_matrix, args.num_clusters)
+        elif args.algorithm == 'hierarchical':
+            cluster_labels = hierarchical_clustering(dist_matrix, args.num_clusters)
+        else:
+            raise NotImplementedError("We only support kmeans or hierarchical")
 
-    if args.algorithm == 'kmeans':
-        cluster_labels = kmeans_clustering(dist_matrix, args.num_clusters)
-    elif args.algorithm == 'hierarchical':
-        cluster_labels = hierarchical_clustering(dist_matrix, args.num_clusters)
-    else:
-        raise NotImplementedError("We only support kmeans or hierarchical")
+        cluster_statistics(last_step_head_scores_info, cluster_labels, args.num_clusters)
 
-    cluster_statistics(last_step_head_scores_info, cluster_labels, args.num_clusters)
-
-    if args.plot_timesteps:
-        show_timesteps_head_scores(all_steps_head_scores, last_step_head_scores_info)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Head importance analysis')
     parser.add_argument('--num_clusters', type=int, default=4)
     parser.add_argument('--algorithm',
-                        default='kmeans',
-                        choices=['kmeans', 'hierarchical'],
+                        default=None,
+                        choices=[None,'kmeans', 'hierarchical'],
                         help='clustering algorithm that will be used either kmeans or hierarchical')
-    parser.add_argument('--plot_timesteps', type=bool, default=False)  # a lot of big plots
     parser.add_argument('--distance_metric',
                         type=str,
                         choices=['euclidean', 'cosine'],

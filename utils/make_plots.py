@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import cv2  #maybe this will be removed for the final version
 from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
 # settings
 LANGUAGES = ALLOWED_LANGUAGES
@@ -93,14 +92,6 @@ def plot_square_matrix(matrix,
     # plt.show()
 
 
-def create_big_plot(images, plt_name):
-    '''
-    images : list of list 
-    '''
-    im_tile = cv2.vconcat([cv2.hconcat(im_list_h) for im_list_h in images])
-    cv2.imwrite(plt_name, im_tile)
-
-
 def plot_tSNE(tsne_output, head_scores_info):
     colours = ['red', 'green', 'blue', 'black']  # mark tasks with colours
     markers = ['^', 'o', '*', 'X', 's']  # mark languages with plus, circle, *, X, square
@@ -136,7 +127,6 @@ def plot_tSNE(tsne_output, head_scores_info):
                        linestyle='None',
                        markersize=10))
 
-    # plt.legend(task_legend_handles, TASKS, loc='upper left', title='Tasks')
     plt.gca().add_artist(
         plt.legend(task_legend_handles,
                    ALLOWED_DATASETS,
@@ -144,11 +134,6 @@ def plot_tSNE(tsne_output, head_scores_info):
                    title='Tasks',
                    fontsize=12,
                    bbox_to_anchor=(0.99, 0.5)))
-    # plt.legend(task_legend_handles,
-    #            ALLOWED_DATASETS,
-    #            loc='best',
-    #            title='Tasks',
-    #            bbox_to_anchor=(0.30, 0.30)))
 
     plt.legend(language_legend_handles,
                LANGUAGES,
@@ -163,3 +148,4 @@ def plot_tSNE(tsne_output, head_scores_info):
     plt.tight_layout()
     plt.grid()
     plt.savefig('results/plots/tsne.pdf')
+    plt.show()
