@@ -15,7 +15,7 @@ class WikiannDataset(ClassificationDataset):
                  split: str = 'train',
                  sample_n: int = 0,
                  **kwargs):
-        super().__init__("wikiann", tokenizer, lang, split, sample_n)
+        super().__init__("wikiann", tokenizer, lang, split, sample_n, **kwargs)
 
     def _get_input(self, row: dict):
         return row['tokens']
