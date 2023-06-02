@@ -13,3 +13,8 @@ python cka.py results/models/xnli/best results/models/xnli/best results/pruned_m
 python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/fr_0.pkl results/pruned_masks/xnli/fr_0.pkl --save-dir results/cka/validation/
 python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/es_0.pkl results/pruned_masks/xnli/es_0.pkl --save-dir results/cka/validation/
 python cka.py results/models/xnli/best results/models/xnli/best results/pruned_masks/xnli/zh_0.pkl results/pruned_masks/xnli/zh_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/wikiann/best results/models/wikiann/best results/pruned_masks/wikiann/en_0.pkl results/pruned_masks/wikiann/en_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/wikiann/best results/models/wikiann/best results/pruned_masks/wikiann/de_0.pkl results/pruned_masks/wikiann/de_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/wikiann/best results/models/wikiann/best results/pruned_masks/wikiann/fr_0.pkl results/pruned_masks/wikiann/fr_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/wikiann/best results/models/wikiann/best results/pruned_masks/wikiann/es_0.pkl results/pruned_masks/wikiann/es_0.pkl --save-dir results/cka/validation/
+python cka.py results/models/wikiann/best results/models/wikiann/best results/pruned_masks/wikiann/zh_0.pkl results/pruned_masks/wikiann/zh_0.pkl --save-dir results/cka/validation/

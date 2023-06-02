@@ -6,13 +6,19 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.metrics import pairwise_distances
 from sklearn.manifold import TSNE
 from collections import defaultdict
-from mask import set_seed
 import argparse
-from utils.make_plots import plot_square_matrix, create_big_plot, plot_tSNE
-from call_plots import show_timesteps_head_scores
 import matplotlib.pyplot as plt
-from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
 import io
+
+import sys
+if "./" not in sys.path:
+    sys.path.append("./")
+
+from mask import set_seed
+
+from utils.make_plots import plot_tSNE
+from plot.call_plots import show_timesteps_head_scores
+from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
 
 # settings
 LANGUAGES = ALLOWED_LANGUAGES
@@ -23,11 +29,15 @@ SEEDS = [i for i in range(NUM_SEEDS)]
 #I get a memory leak for k-means without this line
 os.environ["OMP_NUM_THREADS"] = '1'
 
+
 class CPU_Unpickler(pickle.Unpickler):
+
     def find_class(self, module, name):
         if module == 'torch.storage' and name == '_load_from_bytes':
             return lambda b: torch.load(io.BytesIO(b), map_location='cpu')
-        else: return super().find_class(module, name)
+        else:
+            return super().find_class(module, name)
+
 
 def load_head_importance_scores():
     '''
@@ -143,7 +153,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Head importance analysis')
-    parser.add_argument('--num_clusters', type=int, default=3)
+    parser.add_argument('--num_clusters', type=int, default=4)
     parser.add_argument('--algorithm',
                         default='kmeans',
                         choices=['kmeans', 'hierarchical'],
