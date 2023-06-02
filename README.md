@@ -19,14 +19,23 @@ cd Language-Specific-Subnetworks
 ```
 
 ### Install environment
-Conda: `conda env create -f env.yml` <br />
-Pip: `pip install -r requirements.txt`
+Conda:
+```
+conda env create -f env.yml
+conda activate atcs
+```
+Pip:
+```
+pip install -r requirements.txt
+```
 
 TODO: lisa job?
 
 ### Download finetuned models and masks
 Either run our provided downloading script:
-```source download.sh```
+```
+source download.sh
+```
 Or download manually by
  - Downloading the models from [google drive](https://drive.google.com/file/d/14xYRVCJbhxhkGR85JzizXn0Me-mMgEKa/view?usp=sharing)
  - Running `unzip results.zip`
@@ -38,14 +47,18 @@ Or download manually by
 ?
 
 #### CKA
-Syntax:`python cka.py model1 model2 mask1 mask2`
+Syntax:`python cka.py model1 model2 mask1 mask2` <br />
 Example:
-```python cka.py results/models/marc/best results/models/paws-x/best results/pruned_masks/marc/zh_0.pkl results/pruned_masks/paws-x/zh_0.pkl```
+```
+python cka.py results/models/marc/best results/models/paws-x/best results/pruned_masks/marc/zh_0.pkl results/pruned_masks/paws-x/zh_0.pkl
+```
 
 #### Stitching
-Syntax:`python stitch.py model1 model2 mask1 mask2 layer_index target_dataset target_lang`
+Syntax:`python stitch.py model1 model2 mask1 mask2 layer_index target_dataset target_lang` <br />
 Example:
-```python stitch.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/en_0.pkl results/pruned_masks/marc/en_0.pkl 6 marc en```
+```
+python stitch.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/en_0.pkl results/pruned_masks/marc/en_0.pkl 6 marc en
+```
 
 ### Plotting
 Some of the plots can be found under `plot/notebooks/`. <br />
