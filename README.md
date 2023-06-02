@@ -1,49 +1,84 @@
 # Investigating the cross-lingual sharing mechanism of multilingual models through their subnetworks
 
-March 2023 | Nikolaos Apostolikas, Gergely Papp, Panagiotis Tsakas, Vasileios Vythoulkas
+> It has been shown that different, equally good subnetworks exist in a transformer model after fine-tuning and pruning it [[1]](#prasanna2020bert). In this project, we investigate the similarity of unilingual subnetworks, obtained by structured-pruned multilingual transformer models. By comparing subnetworks based on (i) mask similarity, (ii) representation similarity, and (iii) functional similarity, we demonstrate that unilingual subnetworks can effectively solve the same task in different languages and solve other tasks in early layers, even with shuffled masks. However, the last layers of the subnetworks are task-specific and cannot generalize to other tasks. Our research also provides insight into mutual information shared between cross-lingual subnetworks.
+
+
+Nikolaos Apostolikas, Gergely Papp, Panagiotis Tsakas, Vasileios Vythoulkas <br />
+March 2023
 
 -------------------
 
 &nbsp;
 
-## Overview
+## Preparation
 
-It has been shown that different, equally good subnetworks exist in a transformer model after fine-tuning and pruning it [[1]](#prasanna2020bert). In this project, we investigate the similarity of unilingual subnetworks, obtained by structured-pruned multilingual transformer models. By comparing subnetworks based on (i) mask similarity, (ii) representation similarity, and (iii) functional similarity, we demonstrate that unilingual subnetworks can effectively solve the same task in different languages and solve other tasks in early layers, even with shuffled masks. However, the last layers of the subnetworks are task-specific and cannot generalize to other tasks. Our research also provides insight into mutual information shared between cross-lingual subnetworks.
+### Download the repository
+```
+git clone https://github.com/apostolikas/Language-Specific-Subnetworks.git
+cd Language-Specific-Subnetworks
+```
+
+### Install environment
+Conda: `conda env create -f env.yml` <br />
+Pip: `pip install -r requirements.txt`
+
+TODO: lisa job?
+
+### Download finetuned models and masks
+Either run our provided downloading script:
+```source download.sh```
+Or download manually by
+ - Downloading the models from [google drive](https://drive.google.com/file/d/14xYRVCJbhxhkGR85JzizXn0Me-mMgEKa/view?usp=sharing)
+ - Running `unzip results.zip`
+
+### Experiments
+
+#### Jaccard
+
+?
+
+#### CKA
+Syntax:`python cka.py model1 model2 mask1 mask2`
+Example:
+```python cka.py results/models/marc/best results/models/paws-x/best results/pruned_masks/marc/zh_0.pkl results/pruned_masks/paws-x/zh_0.pkl```
+
+#### Stitching
+Syntax:`python stitch.py model1 model2 mask1 mask2 layer_index target_dataset target_lang`
+Example:
+```python stitch.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/en_0.pkl results/pruned_masks/marc/en_0.pkl 6 marc en```
+
+### Plotting
+Some of the plots can be found under `plot/notebooks/`. <br />
+The t-SNE plot can be made via
+```
+python plot/head_importance_analysis.py
+```
+And the mask-overlap via
+```
+python plot/stats_script.py
+```
+
+### Finetuning + masking
+In order to finetune a model on ROBERTa, run:
+```
+python finetune.py [xnli|paws-x|marc|wikiann]
+```
+
+Then, you can create the masks for the subnetworks with
+```
+python mask.py results/models/YOUR_MODEL/best --seed 0
+```
+This will script will save the 5 masks for 5 languages for the given finetuned model.
 
 &nbsp;
 
-## Contributions
+<!-- ## Contributions
 
 1. Jaccard similarity of masks is unstable across seeds and therefore it is not a reliable metric to compare subnetworks [[1]](#prasanna2020bert). In response to this, we present an analysis through representational and functional similarity metrics, namely CKA  [[2]](#cka) and relative accuracy (RA) achieved by model stitching [\[3,](#stitching1)[ 4\]](#stitching2). In contrast to Jaccard similarity, these measures are stable across seeds.
 
 2. While subnetworks can be grouped into tasks and languages, we find that tasks have a greater impact on the final mask of subnetworks than languages. 
 
-3. Linear CKA shows little or no relation between subnetworks that were trained for other tasks and languages. However, in fact, all subnetworks contain sufficient information to solve other tasks. More precisely, an affine stitching layer at early layers is enough to match any other subnetworks' performance, regardless of what task or language it was pruned for. Even more, masks in early layers can be shuffled without losing any information about the task, regardless of the language.
-
-&nbsp;
-
-## Instructions
-
-### Preparation
-
-1. Clone this repo:
-`git clone https://github.com/apostolikas/Language-Specific-Subnetworks.git `
-
-2. Download the fine-tuned models used in this project along with the pickle files needed for stitching and CKA using this [link](https://drive.google.com/file/d/1AUcMuQZkXixQoqN92ZopumoATcXF39pc/view?usp=sharing).
-
-3. Move the downloaded file in the project folder and extract the contents of the file by running `unzip results.zip`.
-
-<div style="color: red; font-weight: 800"> TODO </div>
-
-4. Install the environment running the `install_env.job` file.
-
-### Use Cases
-
-<div style="color: red; font-weight: 800"> TODO </div>
-
-- Fine-tuning
-- Evaluation
-- Masking
+3. Linear CKA shows little or no relation between subnetworks that were trained for other tasks and languages. However, in fact, all subnetworks contain sufficient information to solve other tasks. More precisely, an affine stitching layer at early layers is enough to match any other subnetworks' performance, regardless of what task or language it was pruned for. Even more, masks in early layers can be shuffled without losing any information about the task, regardless of the language. -->
 
 &nbsp;
 
