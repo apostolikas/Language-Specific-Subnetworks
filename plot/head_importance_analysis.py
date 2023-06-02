@@ -6,13 +6,19 @@ from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.metrics import pairwise_distances
 from sklearn.manifold import TSNE
 from collections import defaultdict
-from mask import set_seed
 import argparse
-from utils.make_plots import plot_square_matrix, create_big_plot, plot_tSNE
-from call_plots import show_timesteps_head_scores
 import matplotlib.pyplot as plt
-from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
 import io
+
+import sys
+if "./" not in sys.path:
+    sys.path.append("./")
+
+from mask import set_seed
+
+from utils.make_plots import plot_tSNE
+from plot.call_plots import show_timesteps_head_scores
+from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
 
 # settings
 LANGUAGES = ALLOWED_LANGUAGES

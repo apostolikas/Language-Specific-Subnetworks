@@ -1,10 +1,14 @@
-from utils.make_plots import plot_square_matrix, create_big_plot
-import cv2  #make will be removed for the final version
-from stats_scripts import load_masks, determine_importance
+import cv2
 import numpy as np
 import os
 
+import sys
+if "./" not in sys.path:
+    sys.path.append("./")
+
 from data import ALLOWED_LANGUAGES, ALLOWED_DATASETS
+from utils.make_plots import plot_square_matrix, create_big_plot
+from plot.stats_scripts import load_masks, determine_importance
 
 LANGUAGES = ALLOWED_LANGUAGES
 TASKS = ALLOWED_DATASETS

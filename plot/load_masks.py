@@ -9,6 +9,10 @@ import statistics
 import json
 import matplotlib.pyplot as plt
 
+import sys
+if "./" not in sys.path:
+    sys.path.append("./")
+
 from utils.make_plots import plot_lower_triangular_matrix
 from data import ALLOWED_LANGUAGES, ALLOWED_DATASETS
 
