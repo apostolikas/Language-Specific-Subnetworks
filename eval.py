@@ -16,10 +16,11 @@ from transformers import (AutoTokenizer,
                           TrainingArguments,
                           DataCollatorWithPadding,
                           Trainer,
-                          DataCollatorForTokenClassification)
+                          DataCollatorForTokenClassification,
+                          AutoModelForTokenClassification)
 import evaluate
 
-from data import get_dataset, ALLOWED_DATASETS, ALLOWED_LANGUAGES
+from data import get_dataset, ALLOWED_DATASETS, ALLOWED_LANGUAGES, WIKIANN_NAME
 
 
 def compute_metrics():
@@ -105,7 +106,10 @@ def main(args):
 
     # Get model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = AutoModelForSequenceClassification.from_pretrained(args.checkpoint).to(device)
+    if WIKIANN_NAME in args.checkpoint:
+        model = AutoModelForTokenClassification.from_pretrained(args.checkpoint).to(device)
+    else:
+        model = AutoModelForSequenceClassification.from_pretrained(args.checkpoint).to(device)
 
     # Eval
     results = {}
@@ -115,7 +119,14 @@ def main(args):
                 os.path.join(args.mask_dir, dataset_name, f"{lang}_{args.mask_seed}.pkl"))
         else:
             head_mask = None
-        results[lang] = get_model_accuracy(model, dataset, args.batch_size, head_mask)
+
+        if WIKIANN_NAME in args.checkpoint:
+            get_metric_results = get_model_f1
+        else:  # sequence classification
+            get_metric_results = get_model_accuracy
+
+
+        results[lang] = get_metric_results(model, dataset, args.batch_size, head_mask)
 
     for lang, acc in results.items():
         print(f"Results for {lang}: {acc * 100:.2f}%")
