@@ -46,15 +46,16 @@ Or download manually by
 ### Experiments
 
 #### Jaccard
-
+```
 python plot/load_masks.py
-
+```
 #### CKA
 Syntax:`python cka.py model1 model2 mask1 mask2` <br />
 Example:
 ```
 python cka.py results/models/marc/best results/models/paws-x/best results/pruned_masks/marc/zh_0.pkl results/pruned_masks/paws-x/zh_0.pkl
 ```
+This script saves results under results/cka folder.
 
 #### Stitching
 Syntax:`python stitch.py model1 model2 mask1 mask2 layer_index target_dataset target_lang` <br />
@@ -62,6 +63,7 @@ Example:
 ```
 python stitch.py results/models/marc/best results/models/marc/best results/pruned_masks/marc/en_0.pkl results/pruned_masks/marc/en_0.pkl 6 marc en
 ```
+This script saves results under results/stitch folder, in a csv.
 
 ### Plotting
 Some of the plots can be found under `plot/notebooks/`. <br />
