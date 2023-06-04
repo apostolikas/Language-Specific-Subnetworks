@@ -34,8 +34,6 @@ Pip:
 pip install -r requirements.txt
 ```
 
-TODO: lisa job?
-
 ### Download finetuned models and masks
 Either run our provided downloading script:
 ```
