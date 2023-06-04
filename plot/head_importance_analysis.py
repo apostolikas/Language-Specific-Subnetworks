@@ -52,7 +52,7 @@ def load_head_importance_scores():
     for lang in LANGUAGES:
         for task in ALLOWED_DATASETS:
             for seed in SEEDS:
-                path = os.path.join('./results/pruned_masks',
+                path = os.path.join('results','pruned_masks',
                                     task,
                                     f'head_imp_{lang}_{seed}.pickle')
                 with open(path, 'rb') as file:

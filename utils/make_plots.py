@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from data import ALLOWED_DATASETS, ALLOWED_LANGUAGES
+import os
 # settings
 LANGUAGES = ALLOWED_LANGUAGES
 NUM_SEEDS = 5
@@ -147,5 +148,6 @@ def plot_tSNE(tsne_output, head_scores_info):
     plt.title("t-SNE visualization of subnetworks' masks", fontsize=18)
     plt.tight_layout()
     plt.grid()
-    plt.savefig('results/plots/tsne.pdf')
+    path = os.path.join('results','plots','tsne.pdf')
+    plt.savefig(path)
     plt.show()
