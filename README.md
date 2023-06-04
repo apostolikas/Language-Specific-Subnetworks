@@ -19,7 +19,7 @@ Please find instructions to reproduce the results below.
 
 ### Download the repository
 ```
-git clone https://github.com/apostolikas/Language-Specific-Subnetworks.git
+Download this repository.
 cd Language-Specific-Subnetworks
 ```
 
