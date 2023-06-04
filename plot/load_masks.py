@@ -1,6 +1,5 @@
 '''
-Download gergopool masks from this link https://www.transferxl.com/download/08d4Q1jw024QT
-after unzipping you should have a folder called results
+Here we calculate the jaccard similarities
 '''
 import numpy as np
 import torch
@@ -8,8 +7,9 @@ import itertools
 import statistics
 import json
 import matplotlib.pyplot as plt
-
+import pandas as pd
 import sys
+import pprint
 if "./" not in sys.path:
     sys.path.append("./")
 
@@ -36,8 +36,7 @@ def load_masks():
             mask_dict[lang][task] = {}
             for seed in range(NUM_SEEDS):
                 path = f'results\pruned_masks\{task}\{lang}_{seed}.pkl'
-                mask = torch.load(path)
-                mask_dict[lang][task][seed] = mask
+                mask_dict[lang][task][seed] = torch.load(path,map_location=torch.device('cpu'))
     return mask_dict
 
 
@@ -71,8 +70,6 @@ def jaccard_similarity_per_task_pair(masks_dict):
     '''
 
     stats_jaccard_task_dict = {}  # mean+-std across seeds
-    max_value = -1
-    print('TASK PAIRS')
     for lang in LANGUAGES:
 
         stats_jaccard_task_dict[lang] = {}
@@ -91,11 +88,6 @@ def jaccard_similarity_per_task_pair(masks_dict):
             mean = round(statistics.mean(tmp_list_jaccard_seeds), 3)
             std = round(statistics.stdev(tmp_list_jaccard_seeds), 3)
             stats_jaccard_task_dict[lang][(task_1, task_2)] = f'{mean}\u00B1{std}'  # mean +- std
-            if max_value < mean:
-                max_value = mean
-                t1, t2 = task_1, task_2
-    print('MEAN ', mean)
-    print(t1, ' ', t2)
 
     return stats_jaccard_task_dict
 
@@ -110,8 +102,6 @@ def jaccard_similarity_per_lang_pair(masks_dict):
             stats_jaccard_lang_dict: dict of the form {task: { (language1, language2): 'mean_jaccard+-std_jaccard'}}
     '''
     stats_jaccard_lang_dict = {}  # mean+-std across seeds
-    print('LANGUAGE PAIRS')
-    max_value = -1
     for task in TASKS:
 
         stats_jaccard_lang_dict[task] = {}
@@ -129,11 +119,6 @@ def jaccard_similarity_per_lang_pair(masks_dict):
             mean = round(statistics.mean(tmp_list_jaccard_seeds), 3)
             std = round(statistics.stdev(tmp_list_jaccard_seeds), 3)
             stats_jaccard_lang_dict[task][(lang_1, lang_2)] = f'{mean}\u00B1{std}'  # mean +- std
-            if max_value < mean:
-                max_value = mean
-                t1, t2 = lang_1, lang_2
-    print('MEAN ', mean)
-    print(t1, ' ', t2)
 
     return stats_jaccard_lang_dict
 
@@ -207,13 +192,15 @@ def surviving_per_task(masks_dict):
                                      'TASK',
                                      'TASK')
 
+if __name__=='__main__':
+    masks_dict = load_masks()
+    jaccard_task_dict = jaccard_similarity_per_task_pair(masks_dict)
+    jaccard_lang_dict = jaccard_similarity_per_lang_pair(masks_dict)
 
-masks_dict = load_masks()
-surviving_per_task(masks_dict)
-jaccard_task_dict = jaccard_similarity_per_task_pair(masks_dict)
-jaccard_lang_dict = jaccard_similarity_per_lang_pair(masks_dict)
-jaccard_seeds_dict = jaccard_similarity_per_seed_pair(masks_dict)
+    print('-'*34)
+    print('TASK PAIRS')
+    pprint.pprint(jaccard_task_dict, width=40)
 
-A = 1
-# with open('jaccard_task_dict.json', 'w') as file:
-#      json.dumps(jaccard_task_dict)
+    print('-'*34)
+    print('LANGUAGE PAIRS')
+    pprint.pprint(jaccard_lang_dict, width=40)

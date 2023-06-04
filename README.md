@@ -49,7 +49,7 @@ Or download manually by
 
 #### Jaccard
 
-?
+python plot/load_masks.py
 
 #### CKA
 Syntax:`python cka.py model1 model2 mask1 mask2` <br />
