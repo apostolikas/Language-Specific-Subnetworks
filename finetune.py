@@ -11,7 +11,7 @@ from transformers import (AutoTokenizer,
 import evaluate #we need !pip install seqeval
 
 from data import get_dataset, ALLOWED_DATASETS, WIKIANN_NAME
-
+os.environ["WANDB_DISABLED"] = "true" # just for canvas submission
 
 def compute_metrics():
 
