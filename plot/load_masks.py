@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sys
 import pprint
+import os
 if "./" not in sys.path:
     sys.path.append("./")
 
@@ -35,7 +36,8 @@ def load_masks():
         for task in TASKS:
             mask_dict[lang][task] = {}
             for seed in range(NUM_SEEDS):
-                path = f'results\pruned_masks\{task}\{lang}_{seed}.pkl'
+                # path = f'results\pruned_masks\{task}\{lang}_{seed}.pkl'
+                path = os.path.join('results', 'pruned_masks', task, f'{lang}_{seed}.pkl')
                 mask_dict[lang][task][seed] = torch.load(path,map_location=torch.device('cpu'))
     return mask_dict
 
