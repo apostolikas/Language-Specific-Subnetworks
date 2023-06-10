@@ -2,15 +2,18 @@ import argparse
 import torch
 import os
 import numpy as np
+import math
 from transformers import (AutoTokenizer,
                           AutoModelForSequenceClassification,
                           TrainingArguments,
                           DataCollatorWithPadding, DataCollatorForTokenClassification,
                           Trainer,
-                          EarlyStoppingCallback, AutoModelForTokenClassification)
+                          EarlyStoppingCallback, AutoModelForTokenClassification,
+                          XLMRobertaForMaskedLM, DataCollatorForLanguageModeling)
 import evaluate #we need !pip install seqeval
+from datasets import load_metric
 
-from data import get_dataset, ALLOWED_DATASETS, WIKIANN_NAME
+from data import get_dataset, ALLOWED_DATASETS, WIKIANN_NAME, WIKIPEDIA_NAME
 os.environ["WANDB_DISABLED"] = "true" # just for canvas submission
 
 def compute_metrics():
@@ -43,13 +46,27 @@ def compute_ner_metrics(labels, predictions):
     f1 = all_metrics["overall_f1"] # micro-f1
     return {"f1":f1}
 
+# Define a function to compute perplexity
+def compute_perplexity(eval_predictions):
+    logits, labels = eval_predictions
+    predictions = logits.argmax(dim=-1)
+    loss = torch.nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1))
+    perplexity = math.exp(loss.item())
+    return {"perplexity": perplexity}
+
 def main(args):
+    #https://huggingface.co/docs/transformers/main/tasks/masked_language_modeling
+    #maybe some sentence grouping needed
 
     # Get datasets
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
-    train = get_dataset(args.dataset, tokenizer=tokenizer, split='train', sample_n=args.sample_n)
-    val = get_dataset(args.dataset, tokenizer=tokenizer, split='validation')
-    test = get_dataset(args.dataset, tokenizer=tokenizer, split='test')
+    train = get_dataset(args.dataset, tokenizer=tokenizer, split='train', sample_n=100)
+    if args.dataset == WIKIPEDIA_NAME:
+        val = get_dataset(args.dataset, tokenizer=tokenizer, split='validation',sample_n=100)
+        test = get_dataset(args.dataset, tokenizer=tokenizer, split='test', sample_n=10000)
+    else:
+        val = get_dataset(args.dataset, tokenizer=tokenizer, split='validation')
+        test = get_dataset(args.dataset, tokenizer=tokenizer, split='test')
 
     # Get model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -59,6 +76,10 @@ def main(args):
         id2label = {i: label for i, label in enumerate(label_names)}
         label2id = {v: k for k, v in id2label.items()}
         model = AutoModelForTokenClassification.from_pretrained(args.resume, id2label=id2label, label2id=label2id)
+    elif args.dataset == WIKIPEDIA_NAME:
+        metric = load_metric("perplexity")
+        model = XLMRobertaForMaskedLM.from_pretrained(args.resume)
+        tokenizer.pad_token = tokenizer.eos_token #! that's what they do here https://huggingface.co/docs/transformers/main/tasks/masked_language_modeling
     else:
         model = AutoModelForSequenceClassification.from_pretrained(args.resume,
                                                                num_labels=train.n_classes)
@@ -80,8 +101,8 @@ def main(args):
                                       metric_for_best_model="eval_loss",
                                       dataloader_num_workers=2,
                                       save_total_limit=1,
-                                      fp16=True)
-    if args.dataset == WIKIANN_NAME:
+                                      fp16=False) #! todo change fp16=True for lisa
+    if args.dataset == WIKIANN_NAME: #NER
         trainer = Trainer(model,
                       training_args,
                       train_dataset=train,
@@ -89,6 +110,16 @@ def main(args):
                       data_collator=DataCollatorForTokenClassification(tokenizer=tokenizer),
                       tokenizer=tokenizer,
                       compute_metrics=get_ner_metrics,
+                      callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
+        
+    elif args.dataset == WIKIPEDIA_NAME: #MLM
+        trainer = Trainer(model,
+                      training_args,
+                      train_dataset=train,
+                      eval_dataset=val,
+                      data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer),
+                      tokenizer=tokenizer,
+                      compute_metrics=metric,#compute_perplexity
                       callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
     else:
         trainer = Trainer(model,
@@ -131,6 +162,6 @@ if __name__ == "__main__":
                         type=int,
                         default=0,
                         help='Number of train samples. 0 means all.')
-
     args = parser.parse_args()
+    #args.dataset = 'wikipedia'
     main(args)
