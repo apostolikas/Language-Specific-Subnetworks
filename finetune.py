@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 import math
+from typing import Optional
 from transformers import (AutoTokenizer,
                           AutoModelForSequenceClassification,
                           TrainingArguments,
@@ -15,6 +16,7 @@ from datasets import load_metric
 
 from data import get_dataset, ALLOWED_DATASETS, WIKIANN_NAME, WIKIPEDIA_NAME
 os.environ["WANDB_DISABLED"] = "true" # just for canvas submission
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def compute_metrics():
 
@@ -46,62 +48,83 @@ def compute_ner_metrics(labels, predictions):
     f1 = all_metrics["overall_f1"] # micro-f1
     return {"f1":f1}
 
-# Define a function to compute perplexity
-def compute_perplexity(eval_predictions):
-    logits, labels = eval_predictions
-    predictions = logits.argmax(dim=-1)
-    loss = torch.nn.functional.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1))
-    perplexity = math.exp(loss.item())
-    return {"perplexity": perplexity}
+
+class WikipediaTrainer(Trainer):
+    def evaluate(self, eval_dataset=None, ignore_keys: Optional[list[str]] = None,
+        metric_key_prefix: str = "eval"):
+        if eval_dataset is None: # validation
+            eval_dataset = self.eval_dataset
+            split = 'validation'
+        else:
+            split = 'test'
+            metric_key_prefix = 'test'
+        eval_dataloader = self.get_eval_dataloader(eval_dataset)
+        steps = 0
+        total_loss = 0
+        for batch in eval_dataloader:
+            input_ids, input_mask, label_ids = batch['input_ids'], batch['attention_mask'], batch['labels']
+            input_ids, input_mask, label_ids = input_ids.to(device), input_mask.to(device), label_ids.to(device)
+            with torch.no_grad():
+                outputs = self.model(input_ids, attention_mask = input_mask, labels = label_ids)
+                total_loss += outputs.loss.detach().mean().item()
+                steps += 1
+
+        avg_loss = total_loss / steps
+        perplexity = torch.exp(torch.tensor(avg_loss)).item()
+        print(f'split {split} {metric_key_prefix} metric_key_prefix perplexity {perplexity} len {len(eval_dataloader)}')
+        return {f"{metric_key_prefix}_perplexity": perplexity}
 
 def main(args):
-    #https://huggingface.co/docs/transformers/main/tasks/masked_language_modeling
-    #maybe some sentence grouping needed
-
     # Get datasets
     tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base', use_fast=True)
-    train = get_dataset(args.dataset, tokenizer=tokenizer, split='train', sample_n=100)
+    
     if args.dataset == WIKIPEDIA_NAME:
-        val = get_dataset(args.dataset, tokenizer=tokenizer, split='validation',sample_n=100)
-        test = get_dataset(args.dataset, tokenizer=tokenizer, split='test', sample_n=10000)
-    else:
-        val = get_dataset(args.dataset, tokenizer=tokenizer, split='validation')
-        test = get_dataset(args.dataset, tokenizer=tokenizer, split='test')
+        tokenizer.pad_token = tokenizer.eos_token #! that's what they do here https://huggingface.co/docs/transformers/main/tasks/masked_language_modeling
+
+    train = get_dataset(args.dataset, tokenizer=tokenizer, split='train', sample_n=args.sample_n)
+    val = get_dataset(args.dataset, tokenizer=tokenizer, split='validation',sample_n=args.sample_n)
+    test = get_dataset(args.dataset, tokenizer=tokenizer, split='test',sample_n=args.sample_n)
 
     # Get model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+    # default settings for non-wikipedia datasets
+    metric_for_best_model = "eval_loss"
+    greater_is_better = None 
     if args.dataset == WIKIANN_NAME:
         label_names = train.dataset.features["ner_tags"].feature.names
         id2label = {i: label for i, label in enumerate(label_names)}
         label2id = {v: k for k, v in id2label.items()}
         model = AutoModelForTokenClassification.from_pretrained(args.resume, id2label=id2label, label2id=label2id)
     elif args.dataset == WIKIPEDIA_NAME:
-        metric = load_metric("perplexity")
+        # metric = load_metric("perplexity")
         model = XLMRobertaForMaskedLM.from_pretrained(args.resume)
-        tokenizer.pad_token = tokenizer.eos_token #! that's what they do here https://huggingface.co/docs/transformers/main/tasks/masked_language_modeling
+        metric_for_best_model ='perplexity'
+        greater_is_better = False
     else:
         model = AutoModelForSequenceClassification.from_pretrained(args.resume,
                                                                num_labels=train.n_classes)
     model = model.to(device)
 
-    # Define training hyperparameters
+     
+
+    
     training_args = TrainingArguments(output_dir=os.path.join(args.save_dir, args.dataset),
-                                      seed=args.seed,
-                                      evaluation_strategy="steps",
-                                      save_strategy='steps',
-                                      eval_steps=min(1000, args.sample_n),
-                                      save_steps=min(1000, args.sample_n),
-                                      learning_rate=args.lr,
-                                      per_device_train_batch_size=args.batch_size,
-                                      per_device_eval_batch_size=args.batch_size,
-                                      num_train_epochs=args.epochs,
-                                      weight_decay=args.weight_decay,
-                                      load_best_model_at_end=True,
-                                      metric_for_best_model="eval_loss",
-                                      dataloader_num_workers=2,
-                                      save_total_limit=1,
-                                      fp16=False) #! todo change fp16=True for lisa
+                                    seed=args.seed,
+                                    evaluation_strategy="steps",
+                                    save_strategy='steps',
+                                    eval_steps=min(1000, args.sample_n),
+                                    save_steps=min(1000, args.sample_n),
+                                    learning_rate=args.lr,
+                                    per_device_train_batch_size=args.batch_size,
+                                    per_device_eval_batch_size=args.batch_size,
+                                    num_train_epochs=args.epochs,
+                                    weight_decay=args.weight_decay,
+                                    load_best_model_at_end=True,
+                                    metric_for_best_model=metric_for_best_model,
+                                    dataloader_num_workers=2,
+                                    save_total_limit=1,
+                                    fp16=True, greater_is_better = greater_is_better)
     if args.dataset == WIKIANN_NAME: #NER
         trainer = Trainer(model,
                       training_args,
@@ -113,13 +136,12 @@ def main(args):
                       callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
         
     elif args.dataset == WIKIPEDIA_NAME: #MLM
-        trainer = Trainer(model,
+        trainer = WikipediaTrainer(model,
                       training_args,
                       train_dataset=train,
                       eval_dataset=val,
                       data_collator=DataCollatorForLanguageModeling(tokenizer=tokenizer),
                       tokenizer=tokenizer,
-                      compute_metrics=metric,#compute_perplexity
                       callbacks=[EarlyStoppingCallback(early_stopping_patience=3)])
     else:
         trainer = Trainer(model,
@@ -163,5 +185,4 @@ if __name__ == "__main__":
                         default=0,
                         help='Number of train samples. 0 means all.')
     args = parser.parse_args()
-    #args.dataset = 'wikipedia'
     main(args)

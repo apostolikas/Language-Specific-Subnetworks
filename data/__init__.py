@@ -10,7 +10,7 @@ WIKIPEDIA_NAME = 'wikipedia'
 ALLOWED_DATASETS = ['marc', 'paws-x', 'xnli',WIKIANN_NAME,WIKIPEDIA_NAME]
 
 
-def get_dataset(dataset_name: str, *args, **kwargs) -> ClassificationDataset:
+def get_dataset(dataset_name: str, *args, **kwargs):
 
     name = dataset_name.lower()
 

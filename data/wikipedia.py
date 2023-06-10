@@ -1,73 +1,97 @@
 import torch
 from transformers import AutoTokenizer
 from datasets import load_dataset, concatenate_datasets, Dataset
-from .general import ClassificationDataset
+import os
+import json
+import random
+ALLOWED_LANGUAGES = ['en', 'de', 'fr', 'es', 'zh']
 
+class WikipediaDataset():
 
-class WikipediaDataset(ClassificationDataset):
-
-    name = 'wikipedia'
-    n_classes = 3 #! this is not useful at all here!
+    name: str = 'wikipedia'
+    n_classes: int = None
 
     def __init__(self,
                  tokenizer: AutoTokenizer,
+                 dataset_name: str = 'wikipedia',
                  lang: str = None,
                  split: str = 'train',
                  sample_n: int = 0,
-                 **kwargs):
-        super().__init__("wikipedia", tokenizer, 'fr', split, sample_n, **kwargs)#todo change to fr
+                 tokenizer_kwargs: dict = {},
+                 no_load:bool=False
+                 ):
+        self.dataset_name = dataset_name
+        self.tokenizer_kwargs = tokenizer_kwargs
+        self.tokenizer = tokenizer
+        self.langs = [lang] if lang is not None else ALLOWED_LANGUAGES
+        self.langs = ['zh']
+        self.split = split
+        self.dataset = self.load_dataset(sample_n)
 
-        encodings = self.tokenizer(self.dataset['text'])
+        # super().__init__("wikipedia", tokenizer, 'zh', split, sample_n, **kwargs)#todo change to fr
+    def get_data_split(self, start, end, dataset, indices, sample_n):
+        split_1_indices = indices[start:end]
+        split_list = [dataset[i] for i in split_1_indices] #
+        assert(split_list[2] == dataset[split_1_indices[2]])
+        if sample_n != 0:
+            split_list = split_list[:sample_n]
+        return split_list
 
-        result2 = {}
-        for k, t in encodings.items():
-            for i in range(0, len(encodings['input_ids']), 128):
-                result2[k] = t[i : i + 128]
-           
+    def split_data(self, dataset, sample_n):
+        # 1. shuffle 2. split 3. take samples from split
 
-        # result = {
-        #     k: t[i : i + 128] for i in range(0, len(encodings['input_ids']), 128)
-        #     for k, t in encodings.items()
-        # }
-        # {i: t[i:i+128] if i+128 < len(encodings['input_ids']) else t[i:len(encodings['input_ids'])-1]
-       
+        dataset_length = len(dataset)
+        indices = list(range(dataset_length))
+        random.shuffle(indices)
+        self.indices = indices
+        # Divide the indices into three sets
+        train_size = int(dataset_length *0.8)
+        val_size = int(dataset_length *0.1)
 
-    def preprocess_function(self, examples):
-        return self.tokenizer([" ".join(x) for x in examples["text"]])
-    
-    block_size = 128
+        if self.split == 'train':
+            start, end = 0, train_size
+        elif self.split == 'validation':
+            start, end = train_size, train_size+val_size
+        elif self.split == 'test':
+            start, end = train_size+val_size, len(indices)
 
+        split_list = self.get_data_split(start, end, dataset, indices, sample_n)
 
-    def group_texts(examples):
-        # Concatenate all texts.
-        concatenated_examples = {k: sum(examples[k], []) for k in examples.keys()}
-        total_length = len(concatenated_examples[list(examples.keys())[0]])
-        # We drop the small remainder, we could add padding if the model supported it instead of this drop, you can
-        # customize this part to your needs.
-        block_size = 128
-        if total_length >= block_size:
-            total_length = (total_length // block_size) * block_size
-        # Split by chunks of block_size.
-        result = {
-            k: [t[i : i + block_size] for i in range(0, total_length, block_size)]
-            for k, t in concatenated_examples.items()
-        }
-        result["labels"] = result["input_ids"].copy()
-        return result
+        return split_list
 
-    def _get_input(self, row: dict):
-        return row['text']
+    def load_dataset(self, sample_n):
+        all_languages_dataset = []
+        for i, language in enumerate(self.langs):
+            path = os.path.join(f'{language}.data.json', 'AA', f"wiki_00")
+
+            with open(path, 'r') as input_file:
+                examples = []
+
+                for line in input_file:
+                    doc = json.loads(line)
+                    text = doc["text"].strip()
+                    if text == "":
+                        continue
+                    text = text.replace("\n", " ")
+                    text = text.replace("[...]", "")
+                    if "src=" in text: 
+                        continue
+                    examples.append(text) 
+
+                sample_lang = int(sample_n/len(self.langs))
+                current_split_examples = self.split_data(examples, sample_lang)
+
+                all_languages_dataset.extend(current_split_examples)
+
+        return all_languages_dataset
 
     def __getitem__(self, i: int):
 
-        row = self.dataset[i]
-        inputs = self._get_input(row)
-
+        inputs = self.dataset[i]
+        
         encodings = self.tokenizer(inputs, truncation=True)
-        result = {
-            k: [t[i : i + 128] for i in range(0, len(encodings['input_ids']), 128)]
-            for k, t in encodings.items()
-        }
 
-        result["labels"] = result["input_ids"].copy()
-        return result
+        return encodings
+
+    def __len__(self):
+        return len(self.dataset)
